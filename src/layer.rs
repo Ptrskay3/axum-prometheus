@@ -7,7 +7,7 @@ use crate::{
     service::PrometheusMetricService, AXUM_HTTP_REQUEST_DURATION_SECONDS, SECONDS_DURATION_BUCKETS,
 };
 
-/// Struct representing the tower middleware layer for recording http metrics with Prometheus.
+/// The tower middleware layer for recording http metrics with Prometheus.
 #[derive(Clone)]
 pub struct PrometheusMetricLayer {
     pub metric: Metric,

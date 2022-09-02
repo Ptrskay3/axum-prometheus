@@ -6,7 +6,7 @@ homepage = "https://github.com/Ptrskay3/axum-prometheus"
 license = "MIT"
 keywords = ["axum", "prometheus", "metrics"]
 categories = ["asynchronous", "network-programming", "web-programming", "development-tools::profiling"]
-repository = "hhttps://github.com/Ptrskay3/axum-prometheus"
+repository = "https://github.com/Ptrskay3/axum-prometheus"
 
 # TODO: Make sure we need all of these deps.
 
