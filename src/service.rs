@@ -4,7 +4,7 @@ use axum::extract::MatchedPath;
 use http::{Request, Response};
 use tower::Service;
 
-use crate::{as_label, body::ResponseBody, future::ResponseFuture};
+use crate::{body::ResponseBody, future::ResponseFuture, utils::as_label};
 
 #[derive(Clone)]
 pub struct PrometheusMetricService<S> {
