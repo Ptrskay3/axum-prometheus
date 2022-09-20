@@ -20,21 +20,14 @@
 //! ```
 //!
 //! Then you instantiate the prometheus middleware:
-//! ```
-//! use axum::{routing::get, Router};
+//! ```ignore
 //! use std::{net::SocketAddr, time::Duration};
-//! use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+//! use axum::{routing::get, Router};
+//! use axum_prometheus::PrometheusMetricLayer;
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     tracing_subscriber::registry()
-//!         .with(tracing_subscriber::EnvFilter::new(
-//!             std::env::var("RUST_LOG").unwrap_or_else(|_| "axum-prometheus-example=debug".into()),
-//!         ))
-//!         .with(tracing_subscriber::fmt::layer())
-//!         .init();
-//!
-//!     let (prometheus_layer, metric_handle) = axum_prometheus::PrometheusMetricLayer::pair();
+//!     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 //!     let app = Router::new()
 //!         .route("/fast", get(|| async {}))
 //!         .route(
