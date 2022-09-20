@@ -12,14 +12,12 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 async fn main() {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "simple-example=debug".into()),
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "simple-example=debug".into()),
         ))
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let (metric_layer, metric_handle) = axum_prometheus::PrometheusMetricLayer::pair();
-
+    let (prometheus_layer, metric_handle) = axum_prometheus::PrometheusMetricLayer::pair();
     let app = Router::new()
         .route("/fast", get(|| async {}))
         .route(
@@ -29,7 +27,7 @@ async fn main() {
             }),
         )
         .route("/metrics", get(|| async move { metric_handle.render() }))
-        .layer(metric_layer);
+        .layer(prometheus_layer);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     axum::Server::bind(&addr)
