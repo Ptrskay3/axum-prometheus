@@ -1,3 +1,17 @@
+# Axum-Prometheus
+
+<div align="center">
+<a href="https://github.com/maxcountryman/axum-sessions/actions/workflows/rust.yml">
+<img src="https://github.com/ptrskay3/axum-prometheus/actions/workflows/base.yml/badge.svg" />
+</a>
+<a href="https://crates.io/crates/axum-prometheus">
+<img src="https://img.shields.io/crates/v/axum-prometheus.svg" />
+</a>
+<a href="https://docs.rs/axum-prometheus">
+<img src="https://docs.rs/axum-prometheus/badge.svg" />
+</a>
+</div>
+
 A Prometheus middleware to collect HTTP metrics for Axum applications.
 
 `axum-prometheus` relies on `metrics_exporter_prometheus` as a backed to interact with Prometheus.
