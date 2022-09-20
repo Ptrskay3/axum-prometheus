@@ -21,29 +21,25 @@ pub const AXUM_HTTP_REQUESTS_FAILED: &str = "axum_http_requests_failed";
 
 use std::time::Instant;
 
-pub use layer::Metric;
-pub use layer::PrometheusMetricLayer;
 pub use lifecycle::layer::LifeCycleLayer;
-use lifecycle::Callbacks;
-use metrics::decrement_gauge;
-use metrics::histogram;
-use metrics::increment_counter;
-use metrics::increment_gauge;
-use tower_http::classify::ClassifiedResponse;
-use tower_http::classify::SharedClassifier;
-use tower_http::classify::StatusInRangeAsFailures;
+use lifecycle::{service::LifeCycle, Callbacks};
+use metrics::{decrement_gauge, histogram, increment_counter, increment_gauge};
+use tower::Layer;
+use tower_http::classify::{ClassifiedResponse, SharedClassifier, StatusInRangeAsFailures};
 pub use utils::SECONDS_DURATION_BUCKETS;
+
+use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
 
 pub use metrics;
 pub use metrics_exporter_prometheus;
 use utils::as_label;
 
-#[derive(Clone, Debug, Copy)]
-pub struct Traffic {}
+#[derive(Clone, Default)]
+pub struct Traffic;
 
 impl Traffic {
     pub fn new() -> Self {
-        Self {}
+        Self
     }
 }
 
@@ -79,9 +75,11 @@ impl<FailureClass> Callbacks<FailureClass> for Traffic {
     fn on_response<B>(
         &mut self,
         res: &http::Response<B>,
-        _classifier: ClassifiedResponse<FailureClass, ()>,
+        cls: ClassifiedResponse<FailureClass, ()>,
         data: &mut Self::Data,
     ) {
+        let success = matches!(cls, ClassifiedResponse::Ready(Ok(_)));
+
         let duration_seconds = data.start.elapsed().as_secs_f64();
 
         decrement_gauge!(
@@ -97,7 +95,8 @@ impl<FailureClass> Callbacks<FailureClass> for Traffic {
             duration_seconds,
             &[
                 ("method", data.method.to_string()),
-                ("status", res.status().to_string()),
+                ("status", res.status().as_u16().to_string()),
+                ("success", success.to_string()),
                 ("endpoint", data.endpoint.to_string()),
             ]
         );
@@ -111,25 +110,52 @@ impl<FailureClass> Callbacks<FailureClass> for Traffic {
     ) {
         let labels = [
             ("method", data.method.to_owned()),
-            ("endpoint", data.endpoint.clone()),
+            ("success", "false".into()),
+            ("endpoint", data.endpoint),
         ];
         decrement_gauge!(AXUM_HTTP_REQUESTS_PENDING, 1.0, &labels);
         increment_counter!(AXUM_HTTP_REQUESTS_FAILED, &labels);
     }
 }
 
-pub struct HttpClassifier {
-    classifier: StatusInRangeAsFailures,
+/// The tower middleware layer for recording http metrics with Prometheus.
+#[derive(Clone)]
+pub struct PrometheusMetricLayer {
+    pub(crate) inner_layer: LifeCycleLayer<SharedClassifier<StatusInRangeAsFailures>, Traffic>,
 }
 
-impl HttpClassifier {
+impl PrometheusMetricLayer {
     pub fn new() -> Self {
-        Self {
-            classifier: StatusInRangeAsFailures::new(400..=599),
-        }
+        let make_classifier =
+            StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
+        let inner_layer = LifeCycleLayer::new(make_classifier, Traffic::new());
+        Self { inner_layer }
     }
 
-    pub fn into_make_classifier(self) -> SharedClassifier<StatusInRangeAsFailures> {
-        self.classifier.into_make_classifier()
+    pub fn pair() -> (Self, PrometheusHandle) {
+        let handle = PrometheusBuilder::new()
+            .set_buckets_for_metric(
+                Matcher::Full(AXUM_HTTP_REQUEST_DURATION_SECONDS.to_string()),
+                SECONDS_DURATION_BUCKETS,
+            )
+            .unwrap()
+            .install_recorder()
+            .unwrap();
+
+        (Self::new(), handle)
+    }
+}
+
+impl Default for PrometheusMetricLayer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<S> Layer<S> for PrometheusMetricLayer {
+    type Service = LifeCycle<S, SharedClassifier<StatusInRangeAsFailures>, Traffic>;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        self.inner_layer.layer(inner)
     }
 }

@@ -5,7 +5,7 @@ use tower_http::classify::ClassifiedResponse;
 mod body;
 mod future;
 pub mod layer;
-mod service;
+pub mod service;
 
 pub trait Callbacks<FailureClass>: Sized {
     type Data;

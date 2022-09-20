@@ -4,8 +4,8 @@ use super::service::LifeCycle;
 
 #[derive(Debug, Clone)]
 pub struct LifeCycleLayer<MC, Callbacks> {
-    make_classifier: MC,
-    callbacks: Callbacks,
+    pub(super) make_classifier: MC,
+    pub(super) callbacks: Callbacks,
 }
 
 impl<MC, Callbacks> LifeCycleLayer<MC, Callbacks> {
