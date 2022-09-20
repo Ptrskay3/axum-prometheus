@@ -1,7 +1,7 @@
 # Axum-Prometheus
 
 <div align="center">
-<a href="https://github.com/maxcountryman/axum-sessions/actions/workflows/rust.yml">
+<a href="https://github.com/ptrskay3/axum-prometheus/actions/workflows/base.yml">
 <img src="https://github.com/ptrskay3/axum-prometheus/actions/workflows/base.yml/badge.svg" />
 </a>
 <a href="https://crates.io/crates/axum-prometheus">
