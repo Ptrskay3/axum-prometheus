@@ -1,6 +1,6 @@
 A Prometheus middleware to collect HTTP metrics for Axum applications.
 
-`axum-prometheus` relies on [`metrics_exporter_prometheus`] as a backed to interact with Prometheus.
+`axum-prometheus` relies on `metrics_exporter_prometheus` as a backed to interact with Prometheus.
 
 ## Metrics
 
