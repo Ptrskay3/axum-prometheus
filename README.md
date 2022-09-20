@@ -30,14 +30,14 @@ Note that in the future request size metric is also planned to be implemented.
 
 Add `axum-prometheus` to your `Cargo.toml`.
 
-```not_rust
+```toml
 [dependencies]
 axum-prometheus = "0.1.0"
 ```
 
 Then you instantiate the prometheus middleware:
 
-```ignore
+```rust
 use std::{net::SocketAddr, time::Duration};
 use axum::{routing::get, Router};
 use axum_prometheus::PrometheusMetricLayer;
