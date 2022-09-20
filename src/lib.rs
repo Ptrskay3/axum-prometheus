@@ -49,7 +49,6 @@ impl Traffic {
 
 #[derive(Debug, Clone)]
 pub struct MetricsData {
-    pub status: u16,
     pub endpoint: String,
     pub start: Instant,
     pub method: &'static str,
@@ -61,7 +60,6 @@ impl<FailureClass> Callbacks<FailureClass> for Traffic {
     fn prepare<B>(&mut self, request: &http::Request<B>) -> Self::Data {
         let now = std::time::Instant::now();
         let endpoint = request.uri().path().to_owned();
-        let status = 0u16;
         let method = as_label(request.method());
 
         let labels = [
@@ -72,7 +70,6 @@ impl<FailureClass> Callbacks<FailureClass> for Traffic {
         increment_gauge!(AXUM_HTTP_REQUESTS_PENDING, 1.0, &labels);
 
         MetricsData {
-            status,
             endpoint,
             start: now,
             method,
@@ -81,7 +78,7 @@ impl<FailureClass> Callbacks<FailureClass> for Traffic {
 
     fn on_response<B>(
         &mut self,
-        _res: &http::Response<B>,
+        res: &http::Response<B>,
         _classifier: ClassifiedResponse<FailureClass, ()>,
         data: &mut Self::Data,
     ) {
@@ -100,7 +97,7 @@ impl<FailureClass> Callbacks<FailureClass> for Traffic {
             duration_seconds,
             &[
                 ("method", data.method.to_string()),
-                ("status", data.status.to_string()),
+                ("status", res.status().to_string()),
                 ("endpoint", data.endpoint.to_string()),
             ]
         );
