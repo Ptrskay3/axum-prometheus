@@ -1,3 +1,5 @@
+//! Request lifecycle hooks that can be used to further customize how and what callbacks to run
+//! on events.
 use bytes::Buf;
 use http::{HeaderMap, Request, Response};
 use tower_http::classify::ClassifiedResponse;
