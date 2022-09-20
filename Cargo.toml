@@ -8,8 +8,6 @@ keywords = ["axum", "prometheus", "metrics"]
 categories = ["asynchronous", "network-programming", "web-programming", "development-tools::profiling"]
 repository = "https://github.com/Ptrskay3/axum-prometheus"
 
-# TODO: Make sure we need all of these deps.
-
 [dependencies]
 axum = "0.5.15"
 futures = "0.3.23"
