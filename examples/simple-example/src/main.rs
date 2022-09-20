@@ -27,10 +27,6 @@ async fn main() {
             }),
         )
         .route("/metrics", get(|| async move { metric_handle.render() }))
-        .route(
-            "/bad",
-            get(|| async { axum::http::StatusCode::BAD_REQUEST }),
-        )
         .layer(prometheus_layer);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));

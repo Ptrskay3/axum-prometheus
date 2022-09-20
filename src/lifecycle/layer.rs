@@ -2,6 +2,11 @@ use tower::Layer;
 
 use super::service::LifeCycle;
 
+/// [`Layer`] for adding callbacks to the lifecycle of request.
+///
+/// See the [module docs](crate::lifecycle) for more details.
+///
+/// [`Layer`]: tower::Layer
 #[derive(Debug, Clone)]
 pub struct LifeCycleLayer<MC, Callbacks> {
     pub(super) make_classifier: MC,
@@ -9,6 +14,7 @@ pub struct LifeCycleLayer<MC, Callbacks> {
 }
 
 impl<MC, Callbacks> LifeCycleLayer<MC, Callbacks> {
+    /// Create a new `LifeCycleLayer`.
     pub fn new(make_classifier: MC, callbacks: Callbacks) -> Self {
         LifeCycleLayer {
             make_classifier,
