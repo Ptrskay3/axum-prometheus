@@ -4,13 +4,13 @@ version = "0.1.0"
 edition = "2021"
 homepage = "https://github.com/Ptrskay3/axum-prometheus"
 license = "MIT"
-description = "Prometheus metrics middleware for Axum "
+description = "Prometheus metrics middleware for Axum"
 keywords = ["axum", "prometheus", "metrics"]
 categories = ["asynchronous", "network-programming", "web-programming", "development-tools::profiling"]
 repository = "https://github.com/Ptrskay3/axum-prometheus"
 
 [dependencies]
-axum = "0.5.15"
+axum = "0.6.0-rc.2"
 futures = "0.3.23"
 http = "0.2.8"
 http-body = "0.4.5"
