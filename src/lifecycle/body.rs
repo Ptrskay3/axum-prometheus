@@ -9,9 +9,7 @@ use std::{
 };
 use tower_http::classify::ClassifyEos;
 
-/// Response body for [`LifeCycleHooks`].
-///
-/// [`LifeCycleHooks`]: crate::life_cycle_hooks::LifeCycleHooks
+/// Response body for [`LifeCycle`].
 #[pin_project]
 pub struct ResponseBody<B, C, Callbacks, CallbacksData> {
     #[pin]
