@@ -20,7 +20,7 @@
 //! ```
 //!
 //! Then you instantiate the prometheus middleware:
-//! ```ignore
+//! ```rust,no_run
 //! use std::{net::SocketAddr, time::Duration};
 //! use axum::{routing::get, Router};
 //! use axum_prometheus::PrometheusMetricLayer;
