@@ -1,4 +1,4 @@
-use axum::response::Response;
+use axum_core::response::Response;
 use futures_core::ready;
 use http_body::Body;
 use pin_project::pin_project;
