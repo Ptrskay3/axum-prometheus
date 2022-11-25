@@ -26,13 +26,20 @@ By default three HTTP metrics are tracked
 
 Note that in the future request size metric is also planned to be implemented.
 
+### Compatibility
+
+| Axum Version | Crate Version |
+| ------------ | ------------- |
+| `0.5`        | `0.1`         |
+| `0.6`        | `0.2`         |
+
 ## Usage
 
 Add `axum-prometheus` to your `Cargo.toml`.
 
 ```toml
 [dependencies]
-axum-prometheus = "0.1.0"
+axum-prometheus = "0.2.0"
 ```
 
 Then you instantiate the prometheus middleware:
