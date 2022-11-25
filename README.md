@@ -16,13 +16,6 @@ A Prometheus middleware to collect HTTP metrics for Axum applications.
 
 `axum-prometheus` relies on `metrics_exporter_prometheus` as a backed to interact with Prometheus.
 
-### Note
-
-To use with axum 0.6 see the `axum-0.6` branch:
-```toml
-axum-prometheus = { git = "https://github.com/Ptrskay3/axum-prometheus", branch = "axum-0.6" }
-```
-
 ## Metrics
 
 By default three HTTP metrics are tracked
