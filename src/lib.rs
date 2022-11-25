@@ -16,11 +16,11 @@
 //! Add `axum-prometheus` to your `Cargo.toml`.
 //! ```not_rust
 //! [dependencies]
-//! axum-prometheus = "0.1.0"
+//! axum-prometheus = "0.2.0"
 //! ```
 //!
 //! Then you instantiate the prometheus middleware:
-//! ```ignore
+//! ```rust,no_run
 //! use std::{net::SocketAddr, time::Duration};
 //! use axum::{routing::get, Router};
 //! use axum_prometheus::PrometheusMetricLayer;
