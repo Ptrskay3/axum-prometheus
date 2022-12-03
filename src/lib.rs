@@ -13,7 +13,7 @@
 //!
 //! ## Usage
 //!
-//! For more elaborate use-cases, see the builder-example.
+//! For more elaborate use-cases, see the builder-example that leverages [`PrometheusMetricLayerBuilder`].
 //!
 //! Add `axum-prometheus` to your `Cargo.toml`.
 //! ```not_rust
@@ -72,6 +72,8 @@
 //!
 //! This crate is similar to (and takes inspiration from) [`actix-web-prom`](https://github.com/nlopes/actix-web-prom) and [`rocket_prometheus`](https://github.com/sd2k/rocket_prometheus),
 //! and also builds on top of davidpdrsn's [earlier work with LifeCycleHooks](https://github.com/tower-rs/tower-http/pull/96) in `tower-http`.
+//!
+//! [`PrometheusMetricLayerBuilder`]: crate::PrometheusMetricLayerBuilder
 
 #![allow(clippy::module_name_repetitions, clippy::unreadable_literal)]
 
@@ -84,7 +86,7 @@ pub const AXUM_HTTP_REQUESTS_DURATION_SECONDS: &str = "axum_http_requests_durati
 /// Identifies the counter used for requests total.
 pub const AXUM_HTTP_REQUESTS_TOTAL: &str = "axum_http_requests_total";
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::time::Instant;
 
@@ -106,7 +108,7 @@ pub use metrics_exporter_prometheus;
 /// A marker struct that implements the [`lifecycle::Callbacks`] trait.
 #[derive(Clone, Default)]
 pub struct Traffic<'a> {
-    ignore_patterns: HashSet<&'a str>,
+    ignore_patterns: matchit::Router<()>,
     group_patterns: HashMap<&'a str, matchit::Router<()>>,
 }
 
@@ -116,27 +118,45 @@ impl<'a> Traffic<'a> {
     }
 
     pub(crate) fn with_ignore_pattern(&mut self, ignore_pattern: &'a str) {
-        self.ignore_patterns.insert(ignore_pattern);
+        self.ignore_patterns
+            .insert(ignore_pattern, ())
+            .expect("good route specs");
     }
 
-    pub(crate) fn with_group_pattern_as(&mut self, group_pattern: &'a str, patterns: &'a [&str]) {
-        let mut inner_router = matchit::Router::new();
-        for pattern in patterns {
-            inner_router
-                .insert(pattern.to_owned(), ())
+    pub(crate) fn with_ignore_patterns(&mut self, ignore_patterns: &'a [&'a str]) {
+        for pattern in ignore_patterns {
+            self.ignore_patterns
+                .insert(*pattern, ())
                 .expect("good route specs");
         }
-        self.group_patterns.insert(group_pattern, inner_router);
+    }
+
+    pub(crate) fn with_group_patterns_as(&mut self, group_pattern: &'a str, patterns: &'a [&str]) {
+        self.group_patterns
+            .entry(group_pattern)
+            .and_modify(|router| {
+                for pattern in patterns {
+                    router.insert(*pattern, ()).expect("good route specs");
+                }
+            })
+            .or_insert_with(|| {
+                let mut inner_router = matchit::Router::new();
+                for pattern in patterns {
+                    inner_router.insert(*pattern, ()).expect("good route specs");
+                }
+                inner_router
+            });
     }
 
     pub(crate) fn ignores(&self, path: &str) -> bool {
-        self.ignore_patterns.contains(path)
+        self.ignore_patterns.at(path).is_ok()
     }
 
-    pub(crate) fn groups_pattern(&self, path: &str) -> Option<&str> {
+    pub(crate) fn apply_group_pattern(&self, path: &'a str) -> &'a str {
         self.group_patterns
             .iter()
             .find_map(|(&group, router)| router.at(path).ok().and(Some(group)))
+            .unwrap_or(path)
     }
 }
 
@@ -157,7 +177,7 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
         if self.ignores(endpoint) {
             return None;
         }
-        let endpoint = self.groups_pattern(endpoint).unwrap_or(endpoint).to_owned();
+        let endpoint = self.apply_group_pattern(endpoint).to_owned();
         let method = utils::as_label(request.method());
 
         let labels = [
@@ -262,7 +282,10 @@ where
     /// any request that's URI path matches "/metrics" will be skipped altogether
     /// when reporting to Prometheus.
     ///
-    /// Support the same features as `axum`'s Router.
+    /// Supports the same features as `axum`'s Router.
+    ///
+    ///  _Note that ignore patterns always checked before any other group pattern rule is applied
+    /// and it short-circuits if a certain route is ignored._
     pub fn with_ignore_pattern(mut self, ignore_pattern: &'a str) -> Self {
         self.traffic.with_ignore_pattern(ignore_pattern);
         self
@@ -279,11 +302,15 @@ where
     ///     .with_ignore_patterns(&["/foo", "/bar/:baz"])
     ///     .build();
     /// ```
+    ///
+    /// Supports the same features as `axum`'s Router.
+    ///
+    ///  _Note that ignore patterns always checked before any other group pattern rule is applied
+    /// and it short-circuits if a certain route is ignored._
+    ///
     /// [`with_ignore_pattern`]: crate::PrometheusMetricLayerBuilder::with_ignore_pattern
     pub fn with_ignore_patterns(mut self, ignore_patterns: &'a [&'a str]) -> Self {
-        for pattern in ignore_patterns {
-            self.traffic.with_ignore_pattern(pattern);
-        }
+        self.traffic.with_ignore_patterns(ignore_patterns);
         self
     }
 
@@ -304,13 +331,12 @@ where
     ///     .with_group_patterns_as("/foo", &["/foo/:bar", "foo/:bar/:baz"])
     ///     .build();
     /// ```
-    ///
     pub fn with_group_patterns_as(
         mut self,
         group_pattern: &'a str,
         patterns: &'a [&'a str],
     ) -> Self {
-        self.traffic.with_group_pattern_as(group_pattern, patterns);
+        self.traffic.with_group_patterns_as(group_pattern, patterns);
         self
     }
 }
