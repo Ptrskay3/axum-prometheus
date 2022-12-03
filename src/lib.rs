@@ -107,20 +107,26 @@ pub use metrics_exporter_prometheus;
 #[derive(Clone, Default)]
 pub struct Traffic<'a> {
     ignore_patterns: HashSet<&'a str>,
-    group_patterns: HashMap<&'a str, &'a [&'a str]>,
+    group_patterns: HashMap<&'a str, matchit::Router<()>>,
 }
 
 impl<'a> Traffic<'a> {
     pub(crate) fn new() -> Self {
-        Default::default()
+        Traffic::default()
     }
 
     pub(crate) fn with_ignore_pattern(&mut self, ignore_pattern: &'a str) {
         self.ignore_patterns.insert(ignore_pattern);
     }
 
-    pub(crate) fn with_group_pattern_as(&mut self, group_pattern: &'a str, as_: &'a [&str]) {
-        self.group_patterns.insert(group_pattern, as_);
+    pub(crate) fn with_group_pattern_as(&mut self, group_pattern: &'a str, patterns: &'a [&str]) {
+        let mut inner_router = matchit::Router::new();
+        for pattern in patterns {
+            inner_router
+                .insert(pattern.to_owned(), ())
+                .expect("good route specs");
+        }
+        self.group_patterns.insert(group_pattern, inner_router);
     }
 
     pub(crate) fn ignores(&self, path: &str) -> bool {
@@ -128,19 +134,9 @@ impl<'a> Traffic<'a> {
     }
 
     pub(crate) fn groups_pattern(&self, path: &str) -> Option<&str> {
-        self.group_patterns.iter().find_map(|(group, patterns)| {
-            let mut router = matchit::Router::new();
-            for pattern in patterns.iter() {
-                router
-                    .insert(pattern.to_owned(), ())
-                    .expect("wrong path specification given");
-            }
-            if router.at(path).is_ok() {
-                Some(*group)
-            } else {
-                None
-            }
-        })
+        self.group_patterns
+            .iter()
+            .find_map(|(&group, router)| router.at(path).ok().and(Some(group)))
     }
 }
 
@@ -309,8 +305,12 @@ where
     ///     .build();
     /// ```
     ///
-    pub fn with_group_patterns_as(mut self, group_pattern: &'a str, as_: &'a [&'a str]) -> Self {
-        self.traffic.with_group_pattern_as(group_pattern, as_);
+    pub fn with_group_patterns_as(
+        mut self,
+        group_pattern: &'a str,
+        patterns: &'a [&'a str],
+    ) -> Self {
+        self.traffic.with_group_pattern_as(group_pattern, patterns);
         self
     }
 }
