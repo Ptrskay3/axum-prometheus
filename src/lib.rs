@@ -119,7 +119,7 @@ impl<'a> Traffic<'a> {
         self.ignore_patterns.insert(ignore_pattern);
     }
 
-    pub(crate) fn with_group_pattern_as(&mut self, group_pattern: &'a str, as_: &'a [&'a str]) {
+    pub(crate) fn with_group_pattern_as(&mut self, group_pattern: &'a str, as_: &'a [&str]) {
         self.group_patterns.insert(group_pattern, as_);
     }
 
@@ -127,10 +127,7 @@ impl<'a> Traffic<'a> {
         self.ignore_patterns.contains(path)
     }
 
-    pub(crate) fn groups_pattern<'b>(&self, path: &'b str) -> Option<&'b str>
-    where
-        'a: 'b,
-    {
+    pub(crate) fn groups_pattern(&self, path: &str) -> Option<&str> {
         self.group_patterns.iter().find_map(|(group, patterns)| {
             let mut router = matchit::Router::new();
             for pattern in patterns.iter() {
