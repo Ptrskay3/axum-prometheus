@@ -13,6 +13,8 @@
 //!
 //! ## Usage
 //!
+//! For more elaborate use-cases, see the builder-example.
+//!
 //! Add `axum-prometheus` to your `Cargo.toml`.
 //! ```not_rust
 //! [dependencies]
@@ -82,6 +84,8 @@ pub const AXUM_HTTP_REQUESTS_DURATION_SECONDS: &str = "axum_http_requests_durati
 /// Identifies the counter used for requests total.
 pub const AXUM_HTTP_REQUESTS_TOTAL: &str = "axum_http_requests_total";
 
+use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
 use std::time::Instant;
 
 pub mod lifecycle;
@@ -101,11 +105,45 @@ pub use metrics_exporter_prometheus;
 
 /// A marker struct that implements the [`lifecycle::Callbacks`] trait.
 #[derive(Clone, Default)]
-pub struct Traffic;
+pub struct Traffic<'a> {
+    ignore_patterns: HashSet<&'a str>,
+    group_patterns: HashMap<&'a str, &'a [&'a str]>,
+}
 
-impl Traffic {
-    pub fn new() -> Self {
-        Self
+impl<'a> Traffic<'a> {
+    pub(crate) fn new() -> Self {
+        Default::default()
+    }
+
+    pub(crate) fn with_ignore_pattern(&mut self, ignore_pattern: &'a str) {
+        self.ignore_patterns.insert(ignore_pattern);
+    }
+
+    pub(crate) fn with_group_pattern_as(&mut self, group_pattern: &'a str, as_: &'a [&'a str]) {
+        self.group_patterns.insert(group_pattern, as_);
+    }
+
+    pub(crate) fn ignores(&self, path: &str) -> bool {
+        self.ignore_patterns.contains(path)
+    }
+
+    pub(crate) fn groups_pattern<'b>(&self, path: &'b str) -> Option<&'b str>
+    where
+        'a: 'b,
+    {
+        self.group_patterns.iter().find_map(|(group, patterns)| {
+            let mut router = matchit::Router::new();
+            for pattern in patterns.iter() {
+                router
+                    .insert(pattern.to_owned(), ())
+                    .expect("wrong path specification given");
+            }
+            if router.at(path).is_ok() {
+                Some(*group)
+            } else {
+                None
+            }
+        })
     }
 }
 
@@ -117,12 +155,16 @@ pub struct MetricsData {
     pub method: &'static str,
 }
 
-impl<FailureClass> Callbacks<FailureClass> for Traffic {
-    type Data = MetricsData;
+impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
+    type Data = Option<MetricsData>;
 
     fn prepare<B>(&mut self, request: &http::Request<B>) -> Self::Data {
         let now = std::time::Instant::now();
-        let endpoint = request.uri().path().to_owned();
+        let endpoint = request.uri().path();
+        if self.ignores(endpoint) {
+            return None;
+        }
+        let endpoint = self.groups_pattern(endpoint).unwrap_or(endpoint).to_owned();
         let method = utils::as_label(request.method());
 
         let labels = [
@@ -132,11 +174,11 @@ impl<FailureClass> Callbacks<FailureClass> for Traffic {
         increment_counter!(AXUM_HTTP_REQUESTS_TOTAL, &labels);
         increment_gauge!(AXUM_HTTP_REQUESTS_PENDING, 1.0, &labels);
 
-        MetricsData {
+        Some(MetricsData {
             endpoint,
             start: now,
             method,
-        }
+        })
     }
 
     fn on_response<B>(
@@ -145,35 +187,218 @@ impl<FailureClass> Callbacks<FailureClass> for Traffic {
         _cls: ClassifiedResponse<FailureClass, ()>,
         data: &mut Self::Data,
     ) {
-        let duration_seconds = data.start.elapsed().as_secs_f64();
+        if let Some(data) = data {
+            let duration_seconds = data.start.elapsed().as_secs_f64();
 
-        decrement_gauge!(
-            AXUM_HTTP_REQUESTS_PENDING,
-            1.0,
-            &[
-                ("method", data.method.to_string()),
-                ("endpoint", data.endpoint.to_string())
-            ]
-        );
-        histogram!(
-            AXUM_HTTP_REQUESTS_DURATION_SECONDS,
-            duration_seconds,
-            &[
-                ("method", data.method.to_string()),
-                ("status", res.status().as_u16().to_string()),
-                ("endpoint", data.endpoint.to_string()),
-            ]
-        );
+            decrement_gauge!(
+                AXUM_HTTP_REQUESTS_PENDING,
+                1.0,
+                &[
+                    ("method", data.method.to_string()),
+                    ("endpoint", data.endpoint.to_string())
+                ]
+            );
+            histogram!(
+                AXUM_HTTP_REQUESTS_DURATION_SECONDS,
+                duration_seconds,
+                &[
+                    ("method", data.method.to_string()),
+                    ("status", res.status().as_u16().to_string()),
+                    ("endpoint", data.endpoint.to_string()),
+                ]
+            );
+        }
     }
 }
 
 /// The tower middleware layer for recording http metrics with Prometheus.
 #[derive(Clone)]
-pub struct PrometheusMetricLayer {
-    pub(crate) inner_layer: LifeCycleLayer<SharedClassifier<StatusInRangeAsFailures>, Traffic>,
+pub struct PrometheusMetricLayer<'a> {
+    pub(crate) inner_layer: LifeCycleLayer<SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>>,
 }
 
-impl PrometheusMetricLayer {
+#[doc(hidden)]
+mod sealed {
+    use super::{LayerOnly, Paired};
+    pub trait Sealed {}
+    impl Sealed for LayerOnly {}
+    impl Sealed for Paired {}
+}
+pub trait MetricBuilderState: sealed::Sealed {}
+
+pub enum Paired {}
+pub enum LayerOnly {}
+impl MetricBuilderState for Paired {}
+impl MetricBuilderState for LayerOnly {}
+
+/// A builder for [`PrometheusMetricLayer`] that enables further customizations,
+/// such as ignoring or masking routes and defining customized [`PrometheusHandle`]s.
+///
+/// ## Example
+/// ```rust,no_run
+/// use axum_prometheus::PrometheusMetricLayerBuilder;
+///
+/// let (metric_layer, metric_handle) = PrometheusMetricLayerBuilder::new()
+///     .with_ignore_patterns(&["/metrics", "/sensitive"])
+///     .with_group_patterns_as("/foo", &["/foo/:bar", "/foo/:bar/:baz"])
+///     .with_group_patterns_as("/foo", &["/auth/*path"])
+///     .with_default_metrics()
+///     .build_pair();
+/// ```
+#[derive(Clone, Default)]
+pub struct PrometheusMetricLayerBuilder<'a, S: MetricBuilderState> {
+    pub(crate) traffic: Traffic<'a>,
+    pub(crate) metric_handle: Option<PrometheusHandle>,
+    pub(crate) _marker: PhantomData<S>,
+}
+
+impl<'a, S> PrometheusMetricLayerBuilder<'a, S>
+where
+    S: MetricBuilderState,
+{
+    /// Skip reporting a specific route pattern to Prometheus.
+    ///
+    /// In the following example
+    /// ```rust
+    /// use axum_prometheus::PrometheusMetricLayerBuilder;
+    ///
+    /// let metric_layer = PrometheusMetricLayerBuilder::new()
+    ///     .with_ignore_pattern("/metrics")
+    ///     .build();
+    /// ```
+    /// any request that's URI path matches "/metrics" will be skipped altogether
+    /// when reporting to Prometheus.
+    ///
+    /// Support the same features as `axum`'s Router.
+    pub fn with_ignore_pattern(mut self, ignore_pattern: &'a str) -> Self {
+        self.traffic.with_ignore_pattern(ignore_pattern);
+        self
+    }
+
+    /// Skip reporting a collection of route patterns to Prometheus.
+    ///
+    /// Equivalent with calling [`with_ignore_pattern`] repeatedly.
+    ///
+    /// ```rust
+    /// use axum_prometheus::PrometheusMetricLayerBuilder;
+    ///
+    /// let metric_layer = PrometheusMetricLayerBuilder::new()
+    ///     .with_ignore_patterns(&["/foo", "/bar/:baz"])
+    ///     .build();
+    /// ```
+    /// [`with_ignore_pattern`]: crate::PrometheusMetricLayerBuilder::with_ignore_pattern
+    pub fn with_ignore_patterns(mut self, ignore_patterns: &'a [&'a str]) -> Self {
+        for pattern in ignore_patterns {
+            self.traffic.with_ignore_pattern(pattern);
+        }
+        self
+    }
+
+    /// Group matching route patterns and report them under the given (arbitrary) endpoint.
+    ///
+    /// This feature is commonly useful for parametrized routes. Let's say you have these two routes:
+    ///  - `/foo/:bar`
+    ///  - `/foo/:bar/:baz`
+    ///
+    /// By default every unique request URL path gets reported with different endpoint label.
+    /// This feature allows you to report these under a custom endpoint, for instance `/foo`:
+    ///
+    /// ```rust
+    /// use axum_prometheus::PrometheusMetricLayerBuilder;
+    ///
+    /// let metric_layer = PrometheusMetricLayerBuilder::new()
+    ///     // the choice of "/foo" is arbitrary
+    ///     .with_group_patterns_as("/foo", &["/foo/:bar", "foo/:bar/:baz"])
+    ///     .build();
+    /// ```
+    ///
+    pub fn with_group_patterns_as(mut self, group_pattern: &'a str, as_: &'a [&'a str]) -> Self {
+        self.traffic.with_group_pattern_as(group_pattern, as_);
+        self
+    }
+}
+
+impl<'a> PrometheusMetricLayerBuilder<'a, LayerOnly> {
+    /// Initialize the builder.
+    pub fn new() -> PrometheusMetricLayerBuilder<'a, LayerOnly> {
+        PrometheusMetricLayerBuilder {
+            _marker: PhantomData,
+            traffic: Traffic::new(),
+            metric_handle: None,
+        }
+    }
+
+    /// Attach the default [`PrometheusHandle`] to the builder. This is similar to
+    /// initializing with [`PrometheusMetricLayer::pair`].
+    ///
+    /// After calling this function you can finalize with the [`build_pair`] method, and
+    /// can no longer call [`build`].
+    ///
+    /// [`build`]: crate::PrometheusMetricLayerBuilder::build
+    /// [`build_pair`]: crate::PrometheusMetricLayerBuilder::build_pair
+    pub fn with_default_metrics(mut self) -> PrometheusMetricLayerBuilder<'a, Paired> {
+        self.metric_handle = Some(PrometheusMetricLayer::make_default_handle());
+        PrometheusMetricLayerBuilder::<'_, Paired>::from_layer_only(self)
+    }
+
+    /// Attach a custom [`PrometheusHandle`] to the builder that's returned from the passed
+    /// in closure.
+    ///
+    /// ## Example
+    /// ```rust,no_run
+    /// use axum_prometheus::{
+    ///        PrometheusMetricLayerBuilder, AXUM_HTTP_REQUESTS_DURATION_SECONDS, SECONDS_DURATION_BUCKETS,
+    /// };
+    /// use metrics_exporter_prometheus::{Matcher, PrometheusBuilder};
+    ///
+    /// let (metric_layer, metric_handle) = PrometheusMetricLayerBuilder::new()
+    ///     .with_metrics_from_fn(|| {
+    ///         PrometheusBuilder::new()
+    ///             .set_buckets_for_metric(
+    ///                 Matcher::Full(AXUM_HTTP_REQUESTS_DURATION_SECONDS.to_string()),
+    ///                 SECONDS_DURATION_BUCKETS,
+    ///             )
+    ///             .unwrap()
+    ///             .install_recorder()
+    ///             .unwrap()
+    ///     })
+    ///     .build_pair();
+    /// ```
+    /// After calling this function you can finalize with the [`build_pair`] method, and
+    /// can no longer call [`build`].
+    ///
+    /// [`build`]: crate::PrometheusMetricLayerBuilder::build
+    /// [`build_pair`]: crate::PrometheusMetricLayerBuilder::build_pair
+    pub fn with_metrics_from_fn(
+        mut self,
+        f: impl FnOnce() -> PrometheusHandle,
+    ) -> PrometheusMetricLayerBuilder<'a, Paired> {
+        self.metric_handle = Some(f());
+        PrometheusMetricLayerBuilder::<'_, Paired>::from_layer_only(self)
+    }
+
+    /// Finalize the builder and get the [`PrometheusMetricLayer`] out of it.
+    pub fn build(self) -> PrometheusMetricLayer<'a> {
+        PrometheusMetricLayer::from_builder(self)
+    }
+}
+
+impl<'a> PrometheusMetricLayerBuilder<'a, Paired> {
+    pub(crate) fn from_layer_only(layer_only: PrometheusMetricLayerBuilder<'a, LayerOnly>) -> Self {
+        PrometheusMetricLayerBuilder {
+            _marker: PhantomData,
+            traffic: layer_only.traffic,
+            metric_handle: layer_only.metric_handle,
+        }
+    }
+    /// Finalize the builder and get out the [`PrometheusMetricLayer`] and the
+    /// [`PrometheusHandle`] out of it as a tuple.
+    pub fn build_pair(self) -> (PrometheusMetricLayer<'a>, PrometheusHandle) {
+        PrometheusMetricLayer::pair_from_builder(self)
+    }
+}
+
+impl<'a> PrometheusMetricLayer<'a> {
     /// Create a new tower middleware that can be used to track metrics with Prometheus.
     ///
     /// By default, this __will not__ "install" the exporter which sets it as the
@@ -234,6 +459,28 @@ impl PrometheusMetricLayer {
         Self { inner_layer }
     }
 
+    pub(crate) fn from_builder(builder: PrometheusMetricLayerBuilder<'a, LayerOnly>) -> Self {
+        let make_classifier =
+            StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
+        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic);
+        Self { inner_layer }
+    }
+
+    pub(crate) fn pair_from_builder(
+        builder: PrometheusMetricLayerBuilder<'a, Paired>,
+    ) -> (Self, PrometheusHandle) {
+        let make_classifier =
+            StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
+        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic);
+
+        (
+            Self { inner_layer },
+            builder
+                .metric_handle
+                .unwrap_or_else(Self::make_default_handle),
+        )
+    }
+
     /// Crate a new tower middleware and a default global Prometheus exporter with sensible defaults.
     ///
     /// # Example
@@ -265,27 +512,29 @@ impl PrometheusMetricLayer {
     /// }
     /// ```
     pub fn pair() -> (Self, PrometheusHandle) {
-        let handle = PrometheusBuilder::new()
+        (Self::new(), Self::make_default_handle())
+    }
+
+    pub(crate) fn make_default_handle() -> PrometheusHandle {
+        PrometheusBuilder::new()
             .set_buckets_for_metric(
                 Matcher::Full(AXUM_HTTP_REQUESTS_DURATION_SECONDS.to_string()),
                 SECONDS_DURATION_BUCKETS,
             )
             .unwrap()
             .install_recorder()
-            .unwrap();
-
-        (Self::new(), handle)
+            .unwrap()
     }
 }
 
-impl Default for PrometheusMetricLayer {
+impl<'a> Default for PrometheusMetricLayer<'a> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<S> Layer<S> for PrometheusMetricLayer {
-    type Service = LifeCycle<S, SharedClassifier<StatusInRangeAsFailures>, Traffic>;
+impl<'a, S> Layer<S> for PrometheusMetricLayer<'a> {
+    type Service = LifeCycle<S, SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>>;
 
     fn layer(&self, inner: S) -> Self::Service {
         self.inner_layer.layer(inner)

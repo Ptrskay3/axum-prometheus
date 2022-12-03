@@ -22,7 +22,8 @@ tokio = { version = "1.20.1", features = ["rt-multi-thread", "macros"] }
 tower-http = "0.3.4"
 bytes = "1.2.1"
 futures-core = "0.3.24"
+matchit = "0.6"
 
 [dev-dependencies]
 hyper = "0.14.20"
-axum = "0.6.0"
+axum = "0.6.1"
