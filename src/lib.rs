@@ -127,9 +127,7 @@ impl<'a> Traffic<'a> {
 
     pub(crate) fn with_ignore_patterns(&mut self, ignore_patterns: &'a [&'a str]) {
         for pattern in ignore_patterns {
-            self.ignore_patterns
-                .insert(*pattern, ())
-                .expect("good route specs");
+            self.with_ignore_pattern(pattern);
         }
     }
 

@@ -28,7 +28,7 @@ impl MetricBuilderState for LayerOnly {}
 /// let (metric_layer, metric_handle) = PrometheusMetricLayerBuilder::new()
 ///     .with_ignore_patterns(&["/metrics", "/sensitive"])
 ///     .with_group_patterns_as("/foo", &["/foo/:bar", "/foo/:bar/:baz"])
-///     .with_group_patterns_as("/foo", &["/auth/*path"])
+///     .with_group_patterns_as("/bar", &["/auth/*path"])
 ///     .with_default_metrics()
 ///     .build_pair();
 /// ```
