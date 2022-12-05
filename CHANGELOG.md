@@ -12,14 +12,14 @@ All notable changes to this project will be documented in this file.
   ```rust
   let (prometheus_layer, metric_handle) = PrometheusMetricLayerBuilder::new()
       // ignore reporting requests that match "/foo"
-      .with_ignore_pattern("/foo")
+      .with_ignore_patterns(&["/foo", "/sensitive"])
       // if the any of the second argument matches, report them at the `/bar` endpoint
       .with_group_patterns_as("/bar", &["/foo/:bar", "/foo/:bar/:baz"])
       .with_default_metrics()
       .build_pair();
   ```
 
-- A [builder-example](examples/builder-example/)
+- A [builder-example](examples/builder-example/).
 
 ## [0.2.0] - 2022-10-25
 
