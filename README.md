@@ -35,6 +35,8 @@ Note that in the future request size metric is also planned to be implemented.
 
 ## Usage
 
+For more elaborate use-cases, see the [`builder example`](examples/builder-example/).
+
 Add `axum-prometheus` to your `Cargo.toml`.
 
 ```toml
