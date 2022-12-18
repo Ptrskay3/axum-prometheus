@@ -26,6 +26,21 @@ By default three HTTP metrics are tracked
 
 Note that in the future request size metric is also planned to be implemented.
 
+### Renaming Metrics
+ 
+These metrics can be renamed by specifying environmental variables at compile time:
+- `AXUM_HTTP_REQUESTS_TOTAL`
+- `AXUM_HTTP_REQUESTS_DURATION_SECONDS`
+- `AXUM_HTTP_REQUESTS_PENDING`
+
+Thse environmental variables can be set in your `.cargo/config.toml` since Cargo 1.56:
+```toml
+[env]
+AXUM_HTTP_REQUESTS_TOTAL = "my_app_requests_total"
+AXUM_HTTP_REQUESTS_DURATION_SECONDS = "my_app_requests_duration_seconds"
+AXUM_HTTP_REQUESTS_PENDING = "my_app_requests_pending"
+```
+
 ### Compatibility
 
 | Axum Version | Crate Version |
