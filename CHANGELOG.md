@@ -20,6 +20,13 @@ All notable changes to this project will be documented in this file.
   ```
 
 - A [builder-example](examples/builder-example/).
+- The metric names can be changed by setting some environmental variables at compile time. It is best to set these in the `config.toml` (note this is not the same file as `Cargo.toml`):
+  ```toml
+  [env]
+  AXUM_HTTP_REQUESTS_TOTAL = "my_app_requests_total"
+  AXUM_HTTP_REQUESTS_DURATION_SECONDS = "my_app_requests_duration_seconds"
+  AXUM_HTTP_REQUESTS_PENDING = "my_app_requests_pending"
+  ```
 
 ## [0.2.0] - 2022-10-25
 
