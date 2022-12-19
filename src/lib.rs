@@ -92,20 +92,24 @@
 
 #![allow(clippy::module_name_repetitions, clippy::unreadable_literal)]
 
-/// Identifies the gauge used for the requests pending metric.
+/// Identifies the gauge used for the requests pending metric. Defaults to
+/// `axum_http_requests_pending`, but can be changed by setting the `AXUM_HTTP_REQUESTS_PENDING`
+/// env at compile time.
 pub const AXUM_HTTP_REQUESTS_PENDING: &str = match option_env!("AXUM_HTTP_REQUESTS_PENDING") {
     Some(n) => n,
     None => "axum_http_requests_pending",
 };
 
-/// Identifies the histogram/summary used for request latency.
+/// Identifies the histogram/summary used for request latency. Defaults to `axum_http_requests_duration_seconds`,
+/// but can be changed by setting the `AXUM_HTTP_REQUESTS_DURATION_SECONDS` env at compile time.
 pub const AXUM_HTTP_REQUESTS_DURATION_SECONDS: &str =
     match option_env!("AXUM_HTTP_REQUESTS_DURATION_SECONDS") {
         Some(n) => n,
         None => "axum_http_requests_duration_seconds",
     };
 
-/// Identifies the counter used for requests total.
+/// Identifies the counter used for requests total. Defaults to `axum_http_requests_total`,
+/// but can be changed by setting the `AXUM_HTTP_REQUESTS_TOTAL` env at compile time.
 pub const AXUM_HTTP_REQUESTS_TOTAL: &str = match option_env!("AXUM_HTTP_REQUESTS_TOTAL") {
     Some(n) => n,
     None => "axum_http_requests_total",
