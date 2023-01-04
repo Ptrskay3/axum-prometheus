@@ -27,13 +27,15 @@ By default three HTTP metrics are tracked
 Note that in the future request size metric is also planned to be implemented.
 
 ### Renaming Metrics
- 
+
 These metrics can be renamed by specifying environmental variables at compile time:
+
 - `AXUM_HTTP_REQUESTS_TOTAL`
 - `AXUM_HTTP_REQUESTS_DURATION_SECONDS`
 - `AXUM_HTTP_REQUESTS_PENDING`
 
 These environmental variables can be set in your `.cargo/config.toml` since Cargo 1.56:
+
 ```toml
 [env]
 AXUM_HTTP_REQUESTS_TOTAL = "my_app_requests_total"
@@ -46,7 +48,7 @@ AXUM_HTTP_REQUESTS_PENDING = "my_app_requests_pending"
 | Axum Version | Crate Version |
 | ------------ | ------------- |
 | `0.5`        | `0.1`         |
-| `0.6`        | `0.2`         |
+| `0.6`        | `0.2`, `0.3`  |
 
 ## Usage
 
@@ -56,7 +58,7 @@ Add `axum-prometheus` to your `Cargo.toml`.
 
 ```toml
 [dependencies]
-axum-prometheus = "0.2.0"
+axum-prometheus = "0.3.0"
 ```
 
 Then you instantiate the prometheus middleware:

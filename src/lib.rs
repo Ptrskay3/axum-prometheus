@@ -33,7 +33,7 @@
 //! Add `axum-prometheus` to your `Cargo.toml`.
 //! ```not_rust
 //! [dependencies]
-//! axum-prometheus = "0.2.0"
+//! axum-prometheus = "0.3.0"
 //! ```
 //!
 //! Then you instantiate the prometheus middleware:
