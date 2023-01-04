@@ -1,0 +1,16 @@
+[package]
+name = "endpoint-type-example"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+axum = "0.6.1"
+metrics = "0.20.1"
+metrics-exporter-prometheus = "0.11"
+tokio = { version = "1.0", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+axum-prometheus = { path = "../../" }
+tower-http = "0.3.4"
+

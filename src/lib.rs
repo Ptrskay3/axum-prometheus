@@ -115,15 +115,17 @@ pub const AXUM_HTTP_REQUESTS_TOTAL: &str = match option_env!("AXUM_HTTP_REQUESTS
     None => "axum_http_requests_total",
 };
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::time::Instant;
 
 mod builder;
 pub mod lifecycle;
 mod utils;
+use axum::extract::MatchedPath;
+pub use builder::EndpointLabel;
 pub use builder::PrometheusMetricLayerBuilder;
 use builder::{LayerOnly, Paired};
-
 use lifecycle::layer::LifeCycleLayer;
 use lifecycle::{service::LifeCycle, Callbacks};
 use metrics::{decrement_gauge, histogram, increment_counter, increment_gauge};
@@ -141,6 +143,7 @@ pub use metrics_exporter_prometheus;
 pub struct Traffic<'a> {
     ignore_patterns: matchit::Router<()>,
     group_patterns: HashMap<&'a str, matchit::Router<()>>,
+    endpoint_label: EndpointLabel,
 }
 
 impl<'a> Traffic<'a> {
@@ -187,6 +190,10 @@ impl<'a> Traffic<'a> {
             .find_map(|(&group, router)| router.at(path).ok().and(Some(group)))
             .unwrap_or(path)
     }
+
+    pub(crate) fn with_endpoint_label_type(&mut self, endpoint_label: EndpointLabel) {
+        self.endpoint_label = endpoint_label;
+    }
 }
 
 /// Struct used for storing and calculating information about the current request.
@@ -202,11 +209,31 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
 
     fn prepare<B>(&mut self, request: &http::Request<B>) -> Self::Data {
         let now = std::time::Instant::now();
-        let endpoint = request.uri().path();
-        if self.ignores(endpoint) {
+        let exact_endpoint = request.uri().path();
+        if self.ignores(exact_endpoint) {
             return None;
         }
-        let endpoint = self.apply_group_pattern(endpoint).to_owned();
+        let endpoint = match self.endpoint_label {
+            EndpointLabel::Exact => Cow::from(exact_endpoint),
+            EndpointLabel::MatchedPath => Cow::from(
+                request
+                    .extensions()
+                    .get::<MatchedPath>()
+                    .map_or(exact_endpoint, MatchedPath::as_str),
+            ),
+            EndpointLabel::MatchedPathWithFallbackFn(fallback_fn) => {
+                if let Some(mp) = request
+                    .extensions()
+                    .get::<MatchedPath>()
+                    .map(MatchedPath::as_str)
+                {
+                    Cow::from(mp)
+                } else {
+                    Cow::from(fallback_fn(exact_endpoint))
+                }
+            }
+        };
+        let endpoint = self.apply_group_pattern(&endpoint).to_owned();
         let method = utils::as_label(request.method());
 
         let labels = [
