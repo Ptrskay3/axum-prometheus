@@ -18,6 +18,23 @@ pub enum LayerOnly {}
 impl MetricBuilderState for Paired {}
 impl MetricBuilderState for LayerOnly {}
 
+#[derive(Default, Clone)]
+/// Determines how endpoints are reported to Prometheus.
+pub enum EndpointLabel {
+    /// The reported endpoint label is always the fully qualified uri path that has been requested.
+    Exact,
+    /// The reported endpoint label is determined by first trying to extract and return [`axum::extract::MatchedPath`],
+    /// and if that fails (typically on [nested routes]) it falls back to [`EndpointLabel::Exact`] behavior. This is
+    /// the default option.
+    ///
+    /// [nested routes]: https://docs.rs/axum/latest/axum/extract/struct.MatchedPath.html#matched-path-in-nested-routers
+    #[default]
+    MatchedPath,
+    /// Same as [`EndpointLabel::MatchedPath`], but instead of falling back to the exact uri called, it's given to a user-defined
+    /// fallback function, that is expected to produce a String, which is then reported to Prometheus.
+    MatchedPathWithFallbackFn(for<'f> fn(&'f str) -> String),
+}
+
 /// A builder for [`PrometheusMetricLayer`] that enables further customizations,
 /// such as ignoring or masking routes and defining customized [`PrometheusHandle`]s.
 ///
@@ -111,6 +128,14 @@ where
         patterns: &'a [&'a str],
     ) -> Self {
         self.traffic.with_group_patterns_as(group_pattern, patterns);
+        self
+    }
+
+    /// Determine how endpoints are reported to Prometheus. For more information, see [`EndpointLabel`].
+    ///
+    /// [`EndpointLabel`]: crate::EndpointLabel
+    pub fn with_endpoint_label_type(mut self, endpoint_label: EndpointLabel) -> Self {
+        self.traffic.with_endpoint_label_type(endpoint_label);
         self
     }
 }

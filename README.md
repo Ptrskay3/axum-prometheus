@@ -33,7 +33,7 @@ These metrics can be renamed by specifying environmental variables at compile ti
 - `AXUM_HTTP_REQUESTS_DURATION_SECONDS`
 - `AXUM_HTTP_REQUESTS_PENDING`
 
-Thse environmental variables can be set in your `.cargo/config.toml` since Cargo 1.56:
+These environmental variables can be set in your `.cargo/config.toml` since Cargo 1.56:
 ```toml
 [env]
 AXUM_HTTP_REQUESTS_TOTAL = "my_app_requests_total"
