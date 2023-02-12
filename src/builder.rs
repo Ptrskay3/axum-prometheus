@@ -138,6 +138,15 @@ where
         self.traffic.with_endpoint_label_type(endpoint_label);
         self
     }
+
+    /// Use a prefix for the metrics instead of `axum`. This will use the following metric names:
+    ///  - `{prefix}_http_requests_total`
+    ///  - `{prefix}_http_requests_pending`
+    ///  - `{prefix}_http_requests_duration_seconds`
+    pub fn with_prefix(mut self, prefix: String) -> Self {
+        self.traffic.metric_prefix = Some(prefix);
+        self
+    }
 }
 
 impl<'a> PrometheusMetricLayerBuilder<'a, LayerOnly> {

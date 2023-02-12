@@ -144,6 +144,7 @@ pub struct Traffic<'a> {
     ignore_patterns: matchit::Router<()>,
     group_patterns: HashMap<&'a str, matchit::Router<()>>,
     endpoint_label: EndpointLabel,
+    metric_prefix: Option<String>,
 }
 
 impl<'a> Traffic<'a> {
@@ -240,8 +241,14 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
             ("method", method.to_owned()),
             ("endpoint", endpoint.clone()),
         ];
-        increment_counter!(AXUM_HTTP_REQUESTS_TOTAL, &labels);
-        increment_gauge!(AXUM_HTTP_REQUESTS_PENDING, 1.0, &labels);
+
+        if let Some(prefix) = self.metric_prefix.as_ref() {
+            increment_counter!(format!("{prefix}_http_requests_total"), &labels);
+            increment_gauge!(format!("{prefix}_http_requests_pending"), 1.0, &labels);
+        } else {
+            increment_counter!(AXUM_HTTP_REQUESTS_TOTAL, &labels);
+            increment_gauge!(AXUM_HTTP_REQUESTS_PENDING, 1.0, &labels);
+        }
 
         Some(MetricsData {
             endpoint,
@@ -259,23 +266,36 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
         if let Some(data) = data {
             let duration_seconds = data.start.elapsed().as_secs_f64();
 
-            decrement_gauge!(
-                AXUM_HTTP_REQUESTS_PENDING,
-                1.0,
-                &[
-                    ("method", data.method.to_string()),
-                    ("endpoint", data.endpoint.to_string())
-                ]
-            );
-            histogram!(
-                AXUM_HTTP_REQUESTS_DURATION_SECONDS,
-                duration_seconds,
-                &[
-                    ("method", data.method.to_string()),
-                    ("status", res.status().as_u16().to_string()),
-                    ("endpoint", data.endpoint.to_string()),
-                ]
-            );
+            let gauge_labels = [
+                ("method", data.method.to_string()),
+                ("endpoint", data.endpoint.to_string()),
+            ];
+
+            let histogram_labels = [
+                ("method", data.method.to_string()),
+                ("status", res.status().as_u16().to_string()),
+                ("endpoint", data.endpoint.to_string()),
+            ];
+
+            if let Some(prefix) = self.metric_prefix.as_ref() {
+                decrement_gauge!(
+                    format!("{prefix}_http_requests_pending"),
+                    1.0,
+                    &gauge_labels
+                );
+                histogram!(
+                    format!("{prefix}_http_requests_duration_seconds"),
+                    duration_seconds,
+                    &histogram_labels,
+                );
+            } else {
+                decrement_gauge!(AXUM_HTTP_REQUESTS_PENDING, 1.0, &gauge_labels);
+                histogram!(
+                    AXUM_HTTP_REQUESTS_DURATION_SECONDS,
+                    duration_seconds,
+                    &histogram_labels,
+                );
+            }
         }
     }
 }
