@@ -143,6 +143,8 @@ where
     ///  - `{prefix}_http_requests_total`
     ///  - `{prefix}_http_requests_pending`
     ///  - `{prefix}_http_requests_duration_seconds`
+    ///
+    /// Note that this will take precedence over environment variables.
     pub fn with_prefix(mut self, prefix: String) -> Self {
         self.traffic.metric_prefix = Some(prefix);
         self
