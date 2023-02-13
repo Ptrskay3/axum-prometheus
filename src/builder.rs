@@ -140,6 +140,13 @@ where
         self
     }
 
+    /// Use a prefix for the metrics instead of `axum`. This will use the following
+    /// metric names:
+    ///  - `{prefix}_http_requests_total`
+    ///  - `{prefix}_http_requests_pending`
+    ///  - `{prefix}_http_requests_duration_seconds`
+    ///
+    /// Note that this will take precedence over environment variables.
     pub fn with_prefix(mut self, prefix: String) -> Self {
         self.metric_prefix = Some(prefix);
         self
