@@ -115,6 +115,10 @@ pub const AXUM_HTTP_REQUESTS_TOTAL: &str = match option_env!("AXUM_HTTP_REQUESTS
     None => "axum_http_requests_total",
 };
 
+pub static PREFIXED_HTTP_REQUESTS_TOTAL: OnceCell<String> = OnceCell::new();
+pub static PREFIXED_HTTP_REQUESTS_DURATION_SECONDS: OnceCell<String> = OnceCell::new();
+pub static PREFIXED_HTTP_REQUESTS_PENDING: OnceCell<String> = OnceCell::new();
+
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::time::Instant;
@@ -129,6 +133,7 @@ use builder::{LayerOnly, Paired};
 use lifecycle::layer::LifeCycleLayer;
 use lifecycle::{service::LifeCycle, Callbacks};
 use metrics::{decrement_gauge, histogram, increment_counter, increment_gauge};
+use once_cell::sync::OnceCell;
 use tower::Layer;
 use tower_http::classify::{ClassifiedResponse, SharedClassifier, StatusInRangeAsFailures};
 pub use utils::SECONDS_DURATION_BUCKETS;
@@ -137,6 +142,30 @@ use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
 
 pub use metrics;
 pub use metrics_exporter_prometheus;
+
+/// Use a prefix for the metrics instead of `axum`. This will use the following
+/// metric names:
+///  - `{prefix}_http_requests_total`
+///  - `{prefix}_http_requests_pending`
+///  - `{prefix}_http_requests_duration_seconds`
+///
+/// Note that this will take precedence over environment variables, and can only
+/// be called once. Attempts to call this a second time will panic.
+fn set_prefix(prefix: impl AsRef<str>) {
+    PREFIXED_HTTP_REQUESTS_TOTAL
+        .set(format!("{}_http_requests_total", prefix.as_ref()))
+        .expect("the prefix has already been set, and can only be set once.");
+
+    PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
+        .set(format!(
+            "{}_http_requests_duration_seconds",
+            prefix.as_ref()
+        ))
+        .expect("the prefix has already been set, and can only be set once.");
+    PREFIXED_HTTP_REQUESTS_PENDING
+        .set(format!("{}_http_requests_pending", prefix.as_ref()))
+        .expect("the prefix has already been set, and can only be set once.");
+}
 
 /// A marker struct that implements the [`lifecycle::Callbacks`] trait.
 #[derive(Clone, Default)]
@@ -240,8 +269,16 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
             ("method", method.to_owned()),
             ("endpoint", endpoint.clone()),
         ];
-        increment_counter!(AXUM_HTTP_REQUESTS_TOTAL, &labels);
-        increment_gauge!(AXUM_HTTP_REQUESTS_PENDING, 1.0, &labels);
+
+        let requests_total = PREFIXED_HTTP_REQUESTS_TOTAL
+            .get()
+            .map_or(AXUM_HTTP_REQUESTS_TOTAL, |s| s.as_str());
+        increment_counter!(requests_total, &labels);
+
+        let requests_pending = PREFIXED_HTTP_REQUESTS_PENDING
+            .get()
+            .map_or(AXUM_HTTP_REQUESTS_PENDING, |s| s.as_str());
+        increment_gauge!(requests_pending, 1.0, &labels);
 
         Some(MetricsData {
             endpoint,
@@ -259,22 +296,29 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
         if let Some(data) = data {
             let duration_seconds = data.start.elapsed().as_secs_f64();
 
+            let requests_pending = PREFIXED_HTTP_REQUESTS_PENDING
+                .get()
+                .map_or(AXUM_HTTP_REQUESTS_PENDING, |s| s.as_str());
             decrement_gauge!(
-                AXUM_HTTP_REQUESTS_PENDING,
+                requests_pending,
                 1.0,
                 &[
                     ("method", data.method.to_string()),
-                    ("endpoint", data.endpoint.to_string())
+                    ("endpoint", data.endpoint.to_string()),
                 ]
             );
+
+            let requests_duration = PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
+                .get()
+                .map_or(AXUM_HTTP_REQUESTS_DURATION_SECONDS, |s| s.as_str());
             histogram!(
-                AXUM_HTTP_REQUESTS_DURATION_SECONDS,
+                requests_duration,
                 duration_seconds,
                 &[
                     ("method", data.method.to_string()),
                     ("status", res.status().as_u16().to_string()),
                     ("endpoint", data.endpoint.to_string()),
-                ]
+                ],
             );
         }
     }
@@ -348,6 +392,10 @@ impl<'a> PrometheusMetricLayer<'a> {
     }
 
     pub(crate) fn from_builder(builder: PrometheusMetricLayerBuilder<'a, LayerOnly>) -> Self {
+        if let Some(prefix) = builder.metric_prefix {
+            set_prefix(prefix);
+        }
+
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
         let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic);
@@ -357,6 +405,10 @@ impl<'a> PrometheusMetricLayer<'a> {
     pub(crate) fn pair_from_builder(
         builder: PrometheusMetricLayerBuilder<'a, Paired>,
     ) -> (Self, PrometheusHandle) {
+        if let Some(prefix) = builder.metric_prefix {
+            set_prefix(prefix);
+        }
+
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
         let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic);

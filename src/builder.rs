@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::marker::PhantomData;
 
 use metrics_exporter_prometheus::PrometheusHandle;
@@ -53,6 +54,7 @@ pub enum EndpointLabel {
 pub struct PrometheusMetricLayerBuilder<'a, S: MetricBuilderState> {
     pub(crate) traffic: Traffic<'a>,
     pub(crate) metric_handle: Option<PrometheusHandle>,
+    pub(crate) metric_prefix: Option<String>,
     pub(crate) _marker: PhantomData<S>,
 }
 
@@ -138,6 +140,18 @@ where
         self.traffic.with_endpoint_label_type(endpoint_label);
         self
     }
+
+    /// Use a prefix for the metrics instead of `axum`. This will use the following
+    /// metric names:
+    ///  - `{prefix}_http_requests_total`
+    ///  - `{prefix}_http_requests_pending`
+    ///  - `{prefix}_http_requests_duration_seconds`
+    ///
+    /// Note that this will take precedence over environment variables.
+    pub fn with_prefix(mut self, prefix: impl Into<Cow<'a, str>>) -> Self {
+        self.metric_prefix = Some(prefix.into().into_owned());
+        self
+    }
 }
 
 impl<'a> PrometheusMetricLayerBuilder<'a, LayerOnly> {
@@ -147,6 +161,7 @@ impl<'a> PrometheusMetricLayerBuilder<'a, LayerOnly> {
             _marker: PhantomData,
             traffic: Traffic::new(),
             metric_handle: None,
+            metric_prefix: None,
         }
     }
 
@@ -211,6 +226,7 @@ impl<'a> PrometheusMetricLayerBuilder<'a, Paired> {
             _marker: PhantomData,
             traffic: layer_only.traffic,
             metric_handle: layer_only.metric_handle,
+            metric_prefix: None,
         }
     }
     /// Finalize the builder and get out the [`PrometheusMetricLayer`] and the
