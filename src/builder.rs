@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::marker::PhantomData;
 
 use metrics_exporter_prometheus::PrometheusHandle;
