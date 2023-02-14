@@ -272,14 +272,12 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
 
         let requests_total = PREFIXED_HTTP_REQUESTS_TOTAL
             .get()
-            .and_then(|s| Some(s.as_str()))
-            .unwrap_or(AXUM_HTTP_REQUESTS_TOTAL);
+            .map_or(AXUM_HTTP_REQUESTS_TOTAL, |s| s.as_str());
         increment_counter!(requests_total, &labels);
 
         let requests_pending = PREFIXED_HTTP_REQUESTS_PENDING
             .get()
-            .and_then(|s| Some(s.as_str()))
-            .unwrap_or(AXUM_HTTP_REQUESTS_PENDING);
+            .map_or(AXUM_HTTP_REQUESTS_PENDING, |s| s.as_str());
         increment_gauge!(requests_pending, 1.0, &labels);
 
         Some(MetricsData {
@@ -300,8 +298,7 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
 
             let requests_pending = PREFIXED_HTTP_REQUESTS_PENDING
                 .get()
-                .and_then(|s| Some(s.as_str()))
-                .unwrap_or(AXUM_HTTP_REQUESTS_PENDING);
+                .map_or(AXUM_HTTP_REQUESTS_PENDING, |s| s.as_str());
             decrement_gauge!(
                 requests_pending,
                 1.0,
@@ -313,9 +310,7 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
 
             let requests_duration = PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
                 .get()
-                .and_then(|s| Some(s.as_str()))
-                .unwrap_or(AXUM_HTTP_REQUESTS_DURATION_SECONDS);
-
+                .map_or(AXUM_HTTP_REQUESTS_DURATION_SECONDS, |s| s.as_str());
             histogram!(
                 requests_duration,
                 duration_seconds,

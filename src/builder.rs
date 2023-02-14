@@ -147,8 +147,8 @@ where
     ///  - `{prefix}_http_requests_duration_seconds`
     ///
     /// Note that this will take precedence over environment variables.
-    pub fn with_prefix(mut self, prefix: String) -> Self {
-        self.metric_prefix = Some(prefix);
+    pub fn with_prefix(mut self, prefix: impl Into<Cow<'a, str>>) -> Self {
+        self.metric_prefix = Some(prefix.into().into_owned());
         self
     }
 }
