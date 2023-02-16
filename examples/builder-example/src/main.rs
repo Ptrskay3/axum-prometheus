@@ -23,6 +23,7 @@ async fn main() {
         .init();
 
     let (prometheus_layer, metric_handle) = PrometheusMetricLayerBuilder::new()
+        .with_prefix("builder-example")
         // ignore reporting requests that match "/metrics"
         .with_ignore_pattern("/metrics")
         // if the any of the second argument matches, report them at the `/foo` endpoint

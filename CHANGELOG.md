@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 
 -
 
+# [0.3.1] - 2023-02-16
+
+### Added
+
+- `with_prefix` to `PrometheusMetricLayerBuilder`, which can be used to rename the default prefix (`axum`) for all metrics. This is especially useful when
+  working with cargo workspaces that has more than one `axum_prometheus` instance (since environment variables don't work there).
+
 ## [0.3.0] - 2023-01-04
 
 ### Added
@@ -46,6 +53,7 @@ All notable changes to this project will be documented in this file.
 
 First version.
 
-[unreleased]: https://github.com/Ptrskay3/axum-prometheus/compare/master...release/0.3
+[unreleased]: https://github.com/Ptrskay3/axum-prometheus/compare/master...release/0.3.1
 [0.2.0]: https://github.com/Ptrskay3/axum-prometheus/compare/9fb600d7d9ac2e6d38e6399119fc7ba7f25d5fe0...756dc67bf2baae2de406e012bdaa2334ce0fcdcb
 [0.3.0]: https://github.com/Ptrskay3/axum-prometheus/compare/axum-0.6...release/0.3
+[0.3.1]: https://github.com/Ptrskay3/axum-prometheus/compare/master...release/0.3.1
