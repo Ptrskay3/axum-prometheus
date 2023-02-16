@@ -43,6 +43,8 @@ AXUM_HTTP_REQUESTS_DURATION_SECONDS = "my_app_requests_duration_seconds"
 AXUM_HTTP_REQUESTS_PENDING = "my_app_requests_pending"
 ```
 
+..or optionally use [`PrometheusMetricLayerBuilder::with_prefix`] function.
+
 ### Compatibility
 
 | Axum Version | Crate Version |
@@ -58,7 +60,7 @@ Add `axum-prometheus` to your `Cargo.toml`.
 
 ```toml
 [dependencies]
-axum-prometheus = "0.3.0"
+axum-prometheus = "0.3.1"
 ```
 
 Then you instantiate the prometheus middleware:

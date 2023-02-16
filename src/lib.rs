@@ -26,6 +26,8 @@
 //! AXUM_HTTP_REQUESTS_PENDING = "my_app_requests_pending"
 //! ```
 //!
+//! ..or optionally use [`PrometheusMetricLayerBuilder::with_prefix`] function.
+//!
 //! ## Usage
 //!
 //! For more elaborate use-cases, see the builder-example that leverages [`PrometheusMetricLayerBuilder`].
@@ -33,7 +35,7 @@
 //! Add `axum-prometheus` to your `Cargo.toml`.
 //! ```not_rust
 //! [dependencies]
-//! axum-prometheus = "0.3.0"
+//! axum-prometheus = "0.3.1"
 //! ```
 //!
 //! Then you instantiate the prometheus middleware:
@@ -115,8 +117,11 @@ pub const AXUM_HTTP_REQUESTS_TOTAL: &str = match option_env!("AXUM_HTTP_REQUESTS
     None => "axum_http_requests_total",
 };
 
+#[doc(hidden)]
 pub static PREFIXED_HTTP_REQUESTS_TOTAL: OnceCell<String> = OnceCell::new();
+#[doc(hidden)]
 pub static PREFIXED_HTTP_REQUESTS_DURATION_SECONDS: OnceCell<String> = OnceCell::new();
+#[doc(hidden)]
 pub static PREFIXED_HTTP_REQUESTS_PENDING: OnceCell<String> = OnceCell::new();
 
 use std::borrow::Cow;
