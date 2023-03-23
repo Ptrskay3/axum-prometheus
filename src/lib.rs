@@ -5,7 +5,7 @@
 //! ## Metrics
 //!
 //! By default three HTTP metrics are tracked
-//! - `axum_http_requests_total` (labels: endpoint, method): the total number of HTTP requests handled (counter)
+//! - `axum_http_requests_total` (labels: endpoint, method, status): the total number of HTTP requests handled (counter)
 //! - `axum_http_requests_duration_seconds` (labels: endpoint, method, status): the request duration for all HTTP requests handled (histogram)
 //! - `axum_http_requests_pending` (labels: endpoint, method): the number of currently in-flight requests (gauge)
 //!
@@ -270,20 +270,17 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
         let endpoint = self.apply_group_pattern(&endpoint).to_owned();
         let method = utils::as_label(request.method());
 
-        let labels = [
-            ("method", method.to_owned()),
-            ("endpoint", endpoint.clone()),
-        ];
-
-        let requests_total = PREFIXED_HTTP_REQUESTS_TOTAL
-            .get()
-            .map_or(AXUM_HTTP_REQUESTS_TOTAL, |s| s.as_str());
-        increment_counter!(requests_total, &labels);
-
         let requests_pending = PREFIXED_HTTP_REQUESTS_PENDING
             .get()
             .map_or(AXUM_HTTP_REQUESTS_PENDING, |s| s.as_str());
-        increment_gauge!(requests_pending, 1.0, &labels);
+        increment_gauge!(
+            requests_pending,
+            1.0,
+            &[
+                ("method", method.to_owned()),
+                ("endpoint", endpoint.clone()),
+            ]
+        );
 
         Some(MetricsData {
             endpoint,
@@ -313,18 +310,21 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
                 ]
             );
 
+            let labels = [
+                ("method", data.method.to_string()),
+                ("status", res.status().as_u16().to_string()),
+                ("endpoint", data.endpoint.to_string()),
+            ];
+
+            let requests_total = PREFIXED_HTTP_REQUESTS_TOTAL
+                .get()
+                .map_or(AXUM_HTTP_REQUESTS_TOTAL, |s| s.as_str());
+            increment_counter!(requests_total, &labels);
+
             let requests_duration = PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
                 .get()
                 .map_or(AXUM_HTTP_REQUESTS_DURATION_SECONDS, |s| s.as_str());
-            histogram!(
-                requests_duration,
-                duration_seconds,
-                &[
-                    ("method", data.method.to_string()),
-                    ("status", res.status().as_u16().to_string()),
-                    ("endpoint", data.endpoint.to_string()),
-                ],
-            );
+            histogram!(requests_duration, duration_seconds, &labels,);
         }
     }
 }
