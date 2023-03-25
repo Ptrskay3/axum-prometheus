@@ -35,7 +35,7 @@
 //! Add `axum-prometheus` to your `Cargo.toml`.
 //! ```not_rust
 //! [dependencies]
-//! axum-prometheus = "0.3.1"
+//! axum-prometheus = "0.3.2"
 //! ```
 //!
 //! Then you instantiate the prometheus middleware:
@@ -69,7 +69,7 @@
 //! Note that the `/metrics` endpoint is not automatically exposed, so you need to add that as a route manually.
 //! Calling the `/metrics` endpoint will expose your metrics:
 //! ```not_rust
-//! axum_http_requests_total{method="GET",endpoint="/metrics"} 5
+//! axum_http_requests_total{method="GET",endpoint="/metrics",status="200"} 5
 //! axum_http_requests_pending{method="GET",endpoint="/metrics"} 1
 //! axum_http_requests_duration_seconds_bucket{method="GET",status="200",endpoint="/metrics",le="0.005"} 4
 //! axum_http_requests_duration_seconds_bucket{method="GET",status="200",endpoint="/metrics",le="0.01"} 4
@@ -324,7 +324,7 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
             let requests_duration = PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
                 .get()
                 .map_or(AXUM_HTTP_REQUESTS_DURATION_SECONDS, |s| s.as_str());
-            histogram!(requests_duration, duration_seconds, &labels,);
+            histogram!(requests_duration, duration_seconds, &labels);
         }
     }
 }

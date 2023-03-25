@@ -20,7 +20,7 @@ A Prometheus middleware to collect HTTP metrics for Axum applications.
 
 By default three HTTP metrics are tracked
 
-- `axum_http_requests_total` (labels: endpoint, method): the total number of HTTP requests handled (counter)
+- `axum_http_requests_total` (labels: endpoint, method, status): the total number of HTTP requests handled (counter)
 - `axum_http_requests_duration_seconds` (labels: endpoint, method, status): the request duration for all HTTP requests handled (histogram)
 - `axum_http_requests_pending` (labels: endpoint, method): the number of currently in-flight requests (gauge)
 
@@ -60,7 +60,7 @@ Add `axum-prometheus` to your `Cargo.toml`.
 
 ```toml
 [dependencies]
-axum-prometheus = "0.3.1"
+axum-prometheus = "0.3.2"
 ```
 
 Then you instantiate the prometheus middleware:
@@ -96,7 +96,7 @@ Note that the `/metrics` endpoint is not automatically exposed, so you need to a
 Calling the `/metrics` endpoint will expose your metrics:
 
 ```not_rust
-axum_http_requests_total{method="GET",endpoint="/metrics"} 5
+axum_http_requests_total{method="GET",endpoint="/metrics",status="200"} 5
 axum_http_requests_pending{method="GET",endpoint="/metrics"} 1
 axum_http_requests_duration_seconds_bucket{method="GET",status="200",endpoint="/metrics",le="0.005"} 4
 axum_http_requests_duration_seconds_bucket{method="GET",status="200",endpoint="/metrics",le="0.01"} 4
