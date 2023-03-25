@@ -1,6 +1,6 @@
 [package]
 name = "axum-prometheus"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 homepage = "https://github.com/Ptrskay3/axum-prometheus"
 license = "MIT"
@@ -20,7 +20,7 @@ metrics-exporter-prometheus = "0.11.0"
 pin-project = "1.0.12"
 tower = "0.4.13"
 tokio = { version = "1.20.1", features = ["rt-multi-thread", "macros"] }
-tower-http = "0.3.4"
+tower-http = "0.4.0"
 bytes = "1.2.1"
 futures-core = "0.3.24"
 matchit = "0.7"
