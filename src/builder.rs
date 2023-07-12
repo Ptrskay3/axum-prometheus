@@ -226,7 +226,7 @@ impl<'a> PrometheusMetricLayerBuilder<'a, Paired> {
             _marker: PhantomData,
             traffic: layer_only.traffic,
             metric_handle: layer_only.metric_handle,
-            metric_prefix: None,
+            metric_prefix: layer_only.metric_prefix,
         }
     }
     /// Finalize the builder and get out the [`PrometheusMetricLayer`] and the
