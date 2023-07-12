@@ -140,18 +140,6 @@ where
         self.traffic.with_endpoint_label_type(endpoint_label);
         self
     }
-
-    /// Use a prefix for the metrics instead of `axum`. This will use the following
-    /// metric names:
-    ///  - `{prefix}_http_requests_total`
-    ///  - `{prefix}_http_requests_pending`
-    ///  - `{prefix}_http_requests_duration_seconds`
-    ///
-    /// Note that this will take precedence over environment variables.
-    pub fn with_prefix(mut self, prefix: impl Into<Cow<'a, str>>) -> Self {
-        self.metric_prefix = Some(prefix.into().into_owned());
-        self
-    }
 }
 
 impl<'a> PrometheusMetricLayerBuilder<'a, LayerOnly> {
@@ -212,6 +200,18 @@ impl<'a> PrometheusMetricLayerBuilder<'a, LayerOnly> {
     ) -> PrometheusMetricLayerBuilder<'a, Paired> {
         self.metric_handle = Some(f());
         PrometheusMetricLayerBuilder::<'_, Paired>::from_layer_only(self)
+    }
+
+    /// Use a prefix for the metrics instead of `axum`. This will use the following
+    /// metric names:
+    ///  - `{prefix}_http_requests_total`
+    ///  - `{prefix}_http_requests_pending`
+    ///  - `{prefix}_http_requests_duration_seconds`
+    ///
+    /// Note that this will take precedence over environment variables.
+    pub fn with_prefix(mut self, prefix: impl Into<Cow<'a, str>>) -> Self {
+        self.metric_prefix = Some(prefix.into().into_owned());
+        self
     }
 
     /// Finalize the builder and get the [`PrometheusMetricLayer`] out of it.
