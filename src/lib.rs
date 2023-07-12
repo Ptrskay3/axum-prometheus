@@ -463,7 +463,12 @@ impl<'a> PrometheusMetricLayer<'a> {
     pub(crate) fn make_default_handle() -> PrometheusHandle {
         PrometheusBuilder::new()
             .set_buckets_for_metric(
-                Matcher::Full(AXUM_HTTP_REQUESTS_DURATION_SECONDS.to_string()),
+                Matcher::Full(
+                    PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
+                        .get()
+                        .map_or(AXUM_HTTP_REQUESTS_DURATION_SECONDS, |s| s.as_str())
+                        .to_string(),
+                ),
                 SECONDS_DURATION_BUCKETS,
             )
             .unwrap()
