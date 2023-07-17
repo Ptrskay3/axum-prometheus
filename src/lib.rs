@@ -126,13 +126,16 @@ pub static PREFIXED_HTTP_REQUESTS_PENDING: OnceCell<String> = OnceCell::new();
 
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::time::Instant;
 
 mod builder;
 pub mod lifecycle;
-mod utils;
+pub mod utils;
 use axum::extract::MatchedPath;
 pub use builder::EndpointLabel;
+pub use builder::MetricLayerBuilder;
+#[cfg(feature = "prometheus")]
 pub use builder::PrometheusMetricLayerBuilder;
 use builder::{LayerOnly, Paired};
 use lifecycle::layer::LifeCycleLayer;
@@ -141,11 +144,12 @@ use metrics::{decrement_gauge, histogram, increment_counter, increment_gauge};
 use once_cell::sync::OnceCell;
 use tower::Layer;
 use tower_http::classify::{ClassifiedResponse, SharedClassifier, StatusInRangeAsFailures};
-pub use utils::SECONDS_DURATION_BUCKETS;
 
+#[cfg(feature = "prometheus")]
 use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
 
 pub use metrics;
+#[cfg(feature = "prometheus")]
 pub use metrics_exporter_prometheus;
 
 /// Use a prefix for the metrics instead of `axum`. This will use the following
@@ -329,17 +333,19 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
     }
 }
 
-/// The tower middleware layer for recording http metrics with Prometheus.
+/// The tower middleware layer for recording http metrics with different exporters.
 #[derive(Clone)]
-pub struct PrometheusMetricLayer<'a> {
+pub struct GenericMetricLayer<'a, T> {
     pub(crate) inner_layer: LifeCycleLayer<SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>>,
+    _marker: PhantomData<T>,
 }
 
-impl<'a> PrometheusMetricLayer<'a> {
-    /// Create a new tower middleware that can be used to track metrics with Prometheus.
+impl<'a, T: MakeDefaultHandle<Out = T>> GenericMetricLayer<'a, T> {
+    /// Create a new tower middleware that can be used to track metrics.
     ///
     /// By default, this __will not__ "install" the exporter which sets it as the
-    /// global recorder for all `metrics` calls. Instead, here you can use the [`metrics_exporter_prometheus::PrometheusBuilder`]
+    /// global recorder for all `metrics` calls.
+    /// If you're using Prometheus, here you can use [`metrics_exporter_prometheus::PrometheusBuilder`]
     /// to build your own customized metrics exporter.
     ///
     /// This middleware is using the following constants for identifying different HTTP metrics:
@@ -354,7 +360,7 @@ impl<'a> PrometheusMetricLayer<'a> {
     /// # Example
     /// ```
     /// use axum::{routing::get, Router};
-    /// use axum_prometheus::{AXUM_HTTP_REQUESTS_DURATION_SECONDS, SECONDS_DURATION_BUCKETS, PrometheusMetricLayer};
+    /// use axum_prometheus::{AXUM_HTTP_REQUESTS_DURATION_SECONDS, utils::SECONDS_DURATION_BUCKETS, PrometheusMetricLayer};
     /// use metrics_exporter_prometheus::{Matcher, PrometheusBuilder};
     /// use std::net::SocketAddr;
     ///
@@ -393,10 +399,13 @@ impl<'a> PrometheusMetricLayer<'a> {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
         let inner_layer = LifeCycleLayer::new(make_classifier, Traffic::new());
-        Self { inner_layer }
+        Self {
+            inner_layer,
+            _marker: PhantomData,
+        }
     }
 
-    pub(crate) fn from_builder(builder: PrometheusMetricLayerBuilder<'a, LayerOnly>) -> Self {
+    pub(crate) fn from_builder(builder: MetricLayerBuilder<'a, T, LayerOnly>) -> Self {
         if let Some(prefix) = builder.metric_prefix {
             set_prefix(prefix);
         }
@@ -404,12 +413,13 @@ impl<'a> PrometheusMetricLayer<'a> {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
         let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic);
-        Self { inner_layer }
+        Self {
+            inner_layer,
+            _marker: PhantomData,
+        }
     }
 
-    pub(crate) fn pair_from_builder(
-        builder: PrometheusMetricLayerBuilder<'a, Paired>,
-    ) -> (Self, PrometheusHandle) {
+    pub(crate) fn pair_from_builder(builder: MetricLayerBuilder<'a, T, Paired>) -> (Self, T) {
         if let Some(prefix) = builder.metric_prefix {
             set_prefix(prefix);
         }
@@ -419,10 +429,11 @@ impl<'a> PrometheusMetricLayer<'a> {
         let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic);
 
         (
-            Self { inner_layer },
-            builder
-                .metric_handle
-                .unwrap_or_else(Self::make_default_handle),
+            Self {
+                inner_layer,
+                _marker: PhantomData,
+            },
+            builder.metric_handle.unwrap_or_else(T::make_default_handle),
         )
     }
 
@@ -456,11 +467,68 @@ impl<'a> PrometheusMetricLayer<'a> {
     ///    // server.await.unwrap();
     /// }
     /// ```
-    pub fn pair() -> (Self, PrometheusHandle) {
-        (Self::new(), Self::make_default_handle())
+    pub fn pair() -> (Self, T) {
+        (Self::new(), T::make_default_handle())
     }
+}
 
-    pub(crate) fn make_default_handle() -> PrometheusHandle {
+impl<'a, T: MakeDefaultHandle<Out = T>> Default for GenericMetricLayer<'a, T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<'a, S, T> Layer<S> for GenericMetricLayer<'a, T> {
+    type Service = LifeCycle<S, SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>>;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        self.inner_layer.layer(inner)
+    }
+}
+
+/// The trait that allows to use a metrics exporter in `GenericMetricLayer`.
+pub trait MakeDefaultHandle {
+    /// The type of the metrics handle to return from [`MetricLayerBuilder`].
+    type Out;
+
+    /// The function that defines how to initialize a metric exporter by default, if none were provided.
+    ///
+    /// # Example
+    ///
+    /// ```rust, no_run
+    /// use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle, Matcher};
+    /// use axum_prometheus::{utils::{SECONDS_DURATION_BUCKETS, requests_duration_name}, MakeDefaultHandle, GenericMetricLayer};
+    ///
+    /// // A wrapper struct to work around Rust's orphan rules.
+    /// struct Handle(PrometheusHandle);
+    ///
+    /// impl MakeDefaultHandle for Handle {
+    ///     type Out = PrometheusHandle;
+    ///
+    ///     fn make_default_handle() -> Self::Out {
+    ///         PrometheusBuilder::new()
+    ///             .set_buckets_for_metric(
+    ///                 Matcher::Full(requests_duration_name().to_string()),
+    ///                 SECONDS_DURATION_BUCKETS,
+    ///             )
+    ///             .unwrap()
+    ///             .install_recorder()
+    ///             .unwrap()
+    ///     }
+    /// }
+    /// ```
+    /// and then, to use it:
+    /// ```rust,ignore
+    /// let (layer, handle) =  GenericMetricLayer::<'_, Handle>::pair();
+    /// ```
+    fn make_default_handle() -> Self::Out;
+}
+
+#[cfg(feature = "prometheus")]
+impl MakeDefaultHandle for PrometheusHandle {
+    type Out = Self;
+
+    fn make_default_handle() -> Self::Out {
         PrometheusBuilder::new()
             .set_buckets_for_metric(
                 Matcher::Full(
@@ -469,7 +537,7 @@ impl<'a> PrometheusMetricLayer<'a> {
                         .map_or(AXUM_HTTP_REQUESTS_DURATION_SECONDS, |s| s.as_str())
                         .to_string(),
                 ),
-                SECONDS_DURATION_BUCKETS,
+                utils::SECONDS_DURATION_BUCKETS,
             )
             .unwrap()
             .install_recorder()
@@ -477,16 +545,6 @@ impl<'a> PrometheusMetricLayer<'a> {
     }
 }
 
-impl<'a> Default for PrometheusMetricLayer<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<'a, S> Layer<S> for PrometheusMetricLayer<'a> {
-    type Service = LifeCycle<S, SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>>;
-
-    fn layer(&self, inner: S) -> Self::Service {
-        self.inner_layer.layer(inner)
-    }
-}
+#[cfg(feature = "prometheus")]
+/// The tower middleware layer for recording http metrics with Prometheus.
+pub type PrometheusMetricLayer<'a> = GenericMetricLayer<'a, PrometheusHandle>;
