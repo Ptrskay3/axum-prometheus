@@ -406,10 +406,6 @@ impl<'a, T: MakeDefaultHandle<Out = T>> GenericMetricLayer<'a, T> {
     }
 
     pub(crate) fn from_builder(builder: MetricLayerBuilder<'a, T, LayerOnly>) -> Self {
-        if let Some(prefix) = builder.metric_prefix {
-            set_prefix(prefix);
-        }
-
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
         let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic);
@@ -420,10 +416,6 @@ impl<'a, T: MakeDefaultHandle<Out = T>> GenericMetricLayer<'a, T> {
     }
 
     pub(crate) fn pair_from_builder(builder: MetricLayerBuilder<'a, T, Paired>) -> (Self, T) {
-        if let Some(prefix) = builder.metric_prefix {
-            set_prefix(prefix);
-        }
-
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
         let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic);

@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 #[cfg(feature = "prometheus")]
 use metrics_exporter_prometheus::PrometheusHandle;
 
-use crate::{GenericMetricLayer, MakeDefaultHandle, Traffic};
+use crate::{set_prefix, GenericMetricLayer, MakeDefaultHandle, Traffic};
 
 #[doc(hidden)]
 mod sealed {
@@ -234,6 +234,9 @@ impl<'a, T: MakeDefaultHandle<Out = T>> MetricLayerBuilder<'a, T, LayerOnly> {
 
 impl<'a, T: MakeDefaultHandle<Out = T>> MetricLayerBuilder<'a, T, Paired> {
     pub(crate) fn from_layer_only(layer_only: MetricLayerBuilder<'a, T, LayerOnly>) -> Self {
+        if let Some(prefix) = layer_only.metric_prefix.as_ref() {
+            set_prefix(prefix);
+        }
         MetricLayerBuilder {
             _marker: PhantomData,
             traffic: layer_only.traffic,
