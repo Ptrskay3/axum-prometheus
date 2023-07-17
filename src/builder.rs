@@ -190,9 +190,10 @@ impl<'a, T: MakeDefaultHandle<Out = T>> MetricLayerBuilder<'a, T, LayerOnly> {
     ///
     /// [`build`]: crate::MetricLayerBuilder::build
     /// [`build_pair`]: crate::MetricLayerBuilder::build_pair
-    pub fn with_default_metrics(mut self) -> MetricLayerBuilder<'a, T, Paired> {
-        self.metric_handle = Some(T::make_default_handle());
-        MetricLayerBuilder::<'_, T, Paired>::from_layer_only(self)
+    pub fn with_default_metrics(self) -> MetricLayerBuilder<'a, T, Paired> {
+        let mut builder = MetricLayerBuilder::<'_, T, Paired>::from_layer_only(self);
+        builder.metric_handle = Some(T::make_default_handle());
+        builder
     }
 
     /// Attach a custom built exporter handle to the builder that's returned from the passed
@@ -223,12 +224,10 @@ impl<'a, T: MakeDefaultHandle<Out = T>> MetricLayerBuilder<'a, T, LayerOnly> {
     ///
     /// [`build`]: crate::MetricLayerBuilder::build
     /// [`build_pair`]: crate::MetricLayerBuilder::build_pair
-    pub fn with_metrics_from_fn(
-        mut self,
-        f: impl FnOnce() -> T,
-    ) -> MetricLayerBuilder<'a, T, Paired> {
-        self.metric_handle = Some(f());
-        MetricLayerBuilder::<'_, T, Paired>::from_layer_only(self)
+    pub fn with_metrics_from_fn(self, f: impl FnOnce() -> T) -> MetricLayerBuilder<'a, T, Paired> {
+        let mut builder = MetricLayerBuilder::<'_, T, Paired>::from_layer_only(self);
+        builder.metric_handle = Some(f());
+        builder
     }
 }
 
