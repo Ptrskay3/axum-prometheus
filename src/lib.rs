@@ -492,26 +492,27 @@ pub trait MakeDefaultHandle {
     /// use axum_prometheus::{utils::{SECONDS_DURATION_BUCKETS, requests_duration_name}, MakeDefaultHandle, GenericMetricLayer};
     ///
     /// // A wrapper struct to work around Rust's orphan rules.
-    /// struct Handle(PrometheusHandle);
+    /// pub struct Handle(pub PrometheusHandle);
     ///
     /// impl MakeDefaultHandle for Handle {
-    ///     type Out = PrometheusHandle;
+    ///     type Out = Self;
     ///
     ///     fn make_default_handle() -> Self::Out {
-    ///         PrometheusBuilder::new()
+    ///         let handle = PrometheusBuilder::new()
     ///             .set_buckets_for_metric(
     ///                 Matcher::Full(requests_duration_name().to_string()),
     ///                 SECONDS_DURATION_BUCKETS,
     ///             )
     ///             .unwrap()
     ///             .install_recorder()
-    ///             .unwrap()
+    ///             .unwrap();
+    ///         Self(handle)
     ///     }
     /// }
     /// ```
     /// and then, to use it:
     /// ```rust,ignore
-    /// let (layer, handle) =  GenericMetricLayer::<'_, Handle>::pair();
+    /// let (layer, Handle(handle)) =  GenericMetricLayer::<'_, Handle>::pair();
     /// ```
     fn make_default_handle() -> Self::Out;
 }
