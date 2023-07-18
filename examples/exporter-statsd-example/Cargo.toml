@@ -1,5 +1,5 @@
 [package]
-name = "exporter-tcp-example"
+name = "exporter-statsd-example"
 version = "0.1.0"
 edition = "2021"
 publish = false
@@ -10,6 +10,6 @@ metrics = "0.21.0"
 tokio = { version = "1.0", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-metrics-exporter-tcp = "0.8.0"
+metrics-exporter-statsd = "0.5.0"
 axum-prometheus = { path = "../../", default-features = false }
 
