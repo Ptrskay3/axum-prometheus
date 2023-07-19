@@ -1,6 +1,6 @@
-//! A Prometheus middleware to collect HTTP metrics for Axum applications.
+//!A middleware to collect HTTP metrics for Axum applications.
 //!
-//! `axum-prometheus` relies on [`metrics_exporter_prometheus`] as a backed to interact with Prometheus.
+//! `axum-prometheus` relies on [`metrics.rs`](https://metrics.rs/) and its ecosystem to collect and export metrics - for instance for Prometheus, `metrics_exporter_prometheus` is used as a backed to interact with Prometheus.
 //!
 //! ## Metrics
 //!
@@ -85,6 +85,53 @@
 //! axum_http_requests_duration_seconds_bucket{method="GET",status="200",endpoint="/metrics",le="+Inf"} 4
 //! axum_http_requests_duration_seconds_sum{method="GET",status="200",endpoint="/metrics"} 0.001997171
 //! axum_http_requests_duration_seconds_count{method="GET",status="200",endpoint="/metrics"} 4
+//! ```
+//!
+//! ## Using a different exporter than Prometheus
+//!
+//! This crate may be used with other exporters than Prometheus. First, disable the default features:
+//!
+//! ```toml
+//! axum-prometheus = { version = "0.3.4", default-features = false }
+//! ```
+//!
+//! Then implement the `MakeDefaultHandle` for the provider you'd like to use. For `StatsD`:
+//!
+//! ```rust,ignore
+//! use metrics_exporter_statsd::StatsdBuilder;
+//! use axum_prometheus::{MakeDefaultHandle, GenericMetricLayer};
+//!
+//! // A marker struct for the custom StatsD exporter. Must implement `Clone`,
+//! // because calling `.layer(..)` requires it.
+//! #[derive(Clone)]
+//! struct Recorder;
+//!
+//! // In order to use this with `axum_prometheus`, we must implement `MakeDefaultHandle`.
+//! impl MakeDefaultHandle for Recorder {
+//!     type Out = Self;
+//!
+//!     fn make_default_handle() -> Self::Out {
+//!         // The regular setup for StatsD..
+//!         let recorder = StatsdBuilder::from("127.0.0.1", 8125)
+//!             .with_queue_size(5000)
+//!             .with_buffer_size(1024)
+//!             .build(Some("prefix"))
+//!             .expect("Could not create StatsdRecorder");
+//!
+//!         metrics::set_boxed_recorder(Box::new(recorder)).unwrap();
+//!         // We don't need to return anything meaningful from here (unlike PrometheusHandle)
+//!         // Let's just return a zero-sized struct.
+//!         Recorder
+//!     }
+//! }
+//!
+//! fn main() {
+//!     // ...
+//!     // Use `GenericMetricLayer` instead of `PrometheusMetricLayer`.
+//!     let (metric_layer, _handle) = GenericMetricLayer::<'_, Recorder>::pair();
+//!     // ...
+//!
+//! }
 //! ```
 //!
 //! This crate is similar to (and takes inspiration from) [`actix-web-prom`](https://github.com/nlopes/actix-web-prom) and [`rocket_prometheus`](https://github.com/sd2k/rocket_prometheus),
