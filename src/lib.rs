@@ -465,10 +465,7 @@ where
         }
     }
 
-    pub(crate) fn pair_from_builder(builder: MetricLayerBuilder<'a, T, M, Paired>) -> (Self, T)
-    where
-        M: MakeDefaultHandle<Out = T>,
-    {
+    pub(crate) fn pair_from_builder(builder: MetricLayerBuilder<'a, T, M, Paired>) -> (Self, T) {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
         let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic);
@@ -512,10 +509,7 @@ where
     ///    // server.await.unwrap();
     /// }
     /// ```
-    pub fn pair() -> (Self, T)
-    where
-        M: MakeDefaultHandle<Out = T>,
-    {
+    pub fn pair() -> (Self, T) {
         (Self::new(), M::make_default_handle())
     }
 }
