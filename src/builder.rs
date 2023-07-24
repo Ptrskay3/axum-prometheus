@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 #[cfg(feature = "prometheus")]
 use metrics_exporter_prometheus::PrometheusHandle;
 
-use crate::{set_prefix, GenericMetricLayer, Handle, MakeDefaultHandle, Traffic};
+use crate::{set_prefix, GenericMetricLayer, MakeDefaultHandle, Traffic};
 
 #[doc(hidden)]
 mod sealed {
@@ -271,4 +271,5 @@ where
 
 #[cfg(feature = "prometheus")]
 /// A builder for [`crate::PrometheusMetricLayer`] that enables further customizations.
-pub type PrometheusMetricLayerBuilder<'a, S> = MetricLayerBuilder<'a, PrometheusHandle, Handle, S>;
+pub type PrometheusMetricLayerBuilder<'a, S> =
+    MetricLayerBuilder<'a, PrometheusHandle, crate::Handle, S>;

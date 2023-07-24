@@ -128,7 +128,7 @@
 //! fn main() {
 //!     // ...
 //!     // Use `GenericMetricLayer` instead of `PrometheusMetricLayer`.
-//!     let (metric_layer, _handle) = GenericMetricLayer::<'_, Recorder>::pair();
+//!     let (metric_layer, _handle) = GenericMetricLayer::<'_, _, Recorder>::pair();
 //!     // ...
 //!
 //! }
@@ -577,6 +577,7 @@ pub trait MakeDefaultHandle {
 }
 
 /// The default handle for the Prometheus exporter.
+#[cfg(feature = "prometheus")]
 #[derive(Clone)]
 pub struct Handle(pub PrometheusHandle);
 

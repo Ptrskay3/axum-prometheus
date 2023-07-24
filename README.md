@@ -155,7 +155,7 @@ impl MakeDefaultHandle for Recorder {
 fn main() {
     // ...
     // Use `GenericMetricLayer` instead of `PrometheusMetricLayer`.
-    let (metric_layer, _handle) = GenericMetricLayer::<'_, Recorder>::pair();
+    let (metric_layer, _handle) = GenericMetricLayer::<'_, _, Recorder>::pair();
     // ...
 
 }

@@ -44,7 +44,7 @@ async fn main() {
         .init();
 
     // Use `GenericMetricLayer` instead of `PrometheusMetricLayer`.
-    let (metric_layer, _) = GenericMetricLayer::<'_, Recorder>::pair();
+    let (metric_layer, _) = GenericMetricLayer::<'_, _, Recorder>::pair();
     let app = Router::new()
         .route("/foo", get(|| async {}))
         .route("/bar", get(|| async {}))
