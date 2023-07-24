@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- `PrometheusMetricBuilder::with_prefix` is now properly setting the metric prefix, and the metric handle also takes thhat prefix into account.
+- `PrometheusMetricBuilder::with_prefix` is now properly setting the metric prefix, and the metric handle also takes that prefix into account.
   Previously the metric initialization incorrectly ignored the prefix, which caused the requests duration histogram to use `quantile` instead of `le` labels.
 
 # [0.3.3] - 2023-05-02

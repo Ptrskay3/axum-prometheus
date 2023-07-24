@@ -7,7 +7,8 @@
 use axum::{routing::get, Router};
 use axum_prometheus::{
     metrics_exporter_prometheus::{Matcher, PrometheusBuilder},
-    PrometheusMetricLayerBuilder, AXUM_HTTP_REQUESTS_DURATION_SECONDS, SECONDS_DURATION_BUCKETS,
+    utils::SECONDS_DURATION_BUCKETS,
+    PrometheusMetricLayerBuilder, AXUM_HTTP_REQUESTS_DURATION_SECONDS,
 };
 use std::{net::SocketAddr, time::Duration};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
