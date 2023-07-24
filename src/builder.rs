@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 #[cfg(feature = "prometheus")]
 use metrics_exporter_prometheus::PrometheusHandle;
 
-use crate::{set_prefix, GenericMetricLayer, MakeDefaultHandle, Traffic};
+use crate::{set_prefix, GenericMetricLayer, Handle, MakeDefaultHandle, Traffic};
 
 #[doc(hidden)]
 mod sealed {
@@ -54,16 +54,17 @@ pub enum EndpointLabel {
 ///     .build_pair();
 /// ```
 #[derive(Clone, Default)]
-pub struct MetricLayerBuilder<'a, T, S: MetricBuilderState> {
+pub struct MetricLayerBuilder<'a, T, M, S: MetricBuilderState> {
     pub(crate) traffic: Traffic<'a>,
     pub(crate) metric_handle: Option<T>,
     pub(crate) metric_prefix: Option<String>,
-    pub(crate) _marker: PhantomData<S>,
+    pub(crate) _marker: PhantomData<(S, M)>,
 }
 
-impl<'a, T, S> MetricLayerBuilder<'a, T, S>
+impl<'a, T, M, S> MetricLayerBuilder<'a, T, M, S>
 where
     S: MetricBuilderState,
+    M: MakeDefaultHandle,
 {
     /// Skip reporting a specific route pattern.
     ///
@@ -145,9 +146,12 @@ where
     }
 }
 
-impl<'a, T: MakeDefaultHandle<Out = T>> MetricLayerBuilder<'a, T, LayerOnly> {
+impl<'a, T, M> MetricLayerBuilder<'a, T, M, LayerOnly>
+where
+    M: MakeDefaultHandle<Out = T>,
+{
     /// Initialize the builder.
-    pub fn new() -> MetricLayerBuilder<'a, T, LayerOnly> {
+    pub fn new() -> MetricLayerBuilder<'a, T, M, LayerOnly> {
         MetricLayerBuilder {
             _marker: PhantomData,
             traffic: Traffic::new(),
@@ -176,12 +180,15 @@ impl<'a, T: MakeDefaultHandle<Out = T>> MetricLayerBuilder<'a, T, LayerOnly> {
     }
 
     /// Finalize the builder and get the previously registered metric handle out of it.
-    pub fn build(self) -> GenericMetricLayer<'a, T> {
+    pub fn build(self) -> GenericMetricLayer<'a, T, M> {
         GenericMetricLayer::from_builder(self)
     }
 }
 
-impl<'a, T: MakeDefaultHandle<Out = T>> MetricLayerBuilder<'a, T, LayerOnly> {
+impl<'a, T, M> MetricLayerBuilder<'a, T, M, LayerOnly>
+where
+    M: MakeDefaultHandle<Out = T>,
+{
     /// Attach the default exporter handle to the builder. This is similar to
     /// initializing with [`GenericMetricLayer::pair`].
     ///
@@ -190,9 +197,9 @@ impl<'a, T: MakeDefaultHandle<Out = T>> MetricLayerBuilder<'a, T, LayerOnly> {
     ///
     /// [`build`]: crate::MetricLayerBuilder::build
     /// [`build_pair`]: crate::MetricLayerBuilder::build_pair
-    pub fn with_default_metrics(self) -> MetricLayerBuilder<'a, T, Paired> {
-        let mut builder = MetricLayerBuilder::<'_, T, Paired>::from_layer_only(self);
-        builder.metric_handle = Some(T::make_default_handle());
+    pub fn with_default_metrics(self) -> MetricLayerBuilder<'a, T, M, Paired> {
+        let mut builder = MetricLayerBuilder::<'_, _, _, Paired>::from_layer_only(self);
+        builder.metric_handle = Some(M::make_default_handle());
         builder
     }
 
@@ -224,15 +231,21 @@ impl<'a, T: MakeDefaultHandle<Out = T>> MetricLayerBuilder<'a, T, LayerOnly> {
     ///
     /// [`build`]: crate::MetricLayerBuilder::build
     /// [`build_pair`]: crate::MetricLayerBuilder::build_pair
-    pub fn with_metrics_from_fn(self, f: impl FnOnce() -> T) -> MetricLayerBuilder<'a, T, Paired> {
-        let mut builder = MetricLayerBuilder::<'_, T, Paired>::from_layer_only(self);
+    pub fn with_metrics_from_fn(
+        self,
+        f: impl FnOnce() -> T,
+    ) -> MetricLayerBuilder<'a, T, M, Paired> {
+        let mut builder = MetricLayerBuilder::<'_, _, _, Paired>::from_layer_only(self);
         builder.metric_handle = Some(f());
         builder
     }
 }
 
-impl<'a, T: MakeDefaultHandle<Out = T>> MetricLayerBuilder<'a, T, Paired> {
-    pub(crate) fn from_layer_only(layer_only: MetricLayerBuilder<'a, T, LayerOnly>) -> Self {
+impl<'a, T, M> MetricLayerBuilder<'a, T, M, Paired>
+where
+    M: MakeDefaultHandle<Out = T>,
+{
+    pub(crate) fn from_layer_only(layer_only: MetricLayerBuilder<'a, T, M, LayerOnly>) -> Self {
         if let Some(prefix) = layer_only.metric_prefix.as_ref() {
             set_prefix(prefix);
         }
@@ -243,14 +256,19 @@ impl<'a, T: MakeDefaultHandle<Out = T>> MetricLayerBuilder<'a, T, Paired> {
             metric_prefix: layer_only.metric_prefix,
         }
     }
+}
 
+impl<'a, T, M> MetricLayerBuilder<'a, T, M, Paired>
+where
+    M: MakeDefaultHandle<Out = T>,
+{
     /// Finalize the builder and get out the [`GenericMetricLayer`] and the
     /// exporter handle out of it as a tuple.
-    pub fn build_pair(self) -> (GenericMetricLayer<'a, T>, T) {
+    pub fn build_pair(self) -> (GenericMetricLayer<'a, T, M>, T) {
         GenericMetricLayer::pair_from_builder(self)
     }
 }
 
 #[cfg(feature = "prometheus")]
 /// A builder for [`crate::PrometheusMetricLayer`] that enables further customizations.
-pub type PrometheusMetricLayerBuilder<'a, S> = MetricLayerBuilder<'a, PrometheusHandle, S>;
+pub type PrometheusMetricLayerBuilder<'a, S> = MetricLayerBuilder<'a, PrometheusHandle, Handle, S>;

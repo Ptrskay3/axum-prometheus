@@ -108,7 +108,7 @@
 //!
 //! // In order to use this with `axum_prometheus`, we must implement `MakeDefaultHandle`.
 //! impl MakeDefaultHandle for Recorder {
-//!     type Out = Self;
+//!     type Out = ();
 //!
 //!     fn make_default_handle() -> Self::Out {
 //!         // The regular setup for StatsD..
@@ -120,8 +120,8 @@
 //!
 //!         metrics::set_boxed_recorder(Box::new(recorder)).unwrap();
 //!         // We don't need to return anything meaningful from here (unlike PrometheusHandle)
-//!         // Let's just return a zero-sized struct.
-//!         Recorder
+//!         // Let's just return an empty tuple.
+//!         ()
 //!     }
 //! }
 //!
@@ -382,12 +382,15 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
 
 /// The tower middleware layer for recording http metrics with different exporters.
 #[derive(Clone)]
-pub struct GenericMetricLayer<'a, T> {
+pub struct GenericMetricLayer<'a, T, M> {
     pub(crate) inner_layer: LifeCycleLayer<SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>>,
-    _marker: PhantomData<T>,
+    _marker: PhantomData<(T, M)>,
 }
 
-impl<'a, T: MakeDefaultHandle<Out = T>> GenericMetricLayer<'a, T> {
+impl<'a, T, M> GenericMetricLayer<'a, T, M>
+where
+    M: MakeDefaultHandle<Out = T>,
+{
     /// Create a new tower middleware that can be used to track metrics.
     ///
     /// By default, this __will not__ "install" the exporter which sets it as the
@@ -452,7 +455,7 @@ impl<'a, T: MakeDefaultHandle<Out = T>> GenericMetricLayer<'a, T> {
         }
     }
 
-    pub(crate) fn from_builder(builder: MetricLayerBuilder<'a, T, LayerOnly>) -> Self {
+    pub(crate) fn from_builder(builder: MetricLayerBuilder<'a, T, M, LayerOnly>) -> Self {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
         let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic);
@@ -462,7 +465,10 @@ impl<'a, T: MakeDefaultHandle<Out = T>> GenericMetricLayer<'a, T> {
         }
     }
 
-    pub(crate) fn pair_from_builder(builder: MetricLayerBuilder<'a, T, Paired>) -> (Self, T) {
+    pub(crate) fn pair_from_builder(builder: MetricLayerBuilder<'a, T, M, Paired>) -> (Self, T)
+    where
+        M: MakeDefaultHandle<Out = T>,
+    {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
         let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic);
@@ -472,7 +478,7 @@ impl<'a, T: MakeDefaultHandle<Out = T>> GenericMetricLayer<'a, T> {
                 inner_layer,
                 _marker: PhantomData,
             },
-            builder.metric_handle.unwrap_or_else(T::make_default_handle),
+            builder.metric_handle.unwrap_or_else(M::make_default_handle),
         )
     }
 
@@ -506,18 +512,24 @@ impl<'a, T: MakeDefaultHandle<Out = T>> GenericMetricLayer<'a, T> {
     ///    // server.await.unwrap();
     /// }
     /// ```
-    pub fn pair() -> (Self, T) {
-        (Self::new(), T::make_default_handle())
+    pub fn pair() -> (Self, T)
+    where
+        M: MakeDefaultHandle<Out = T>,
+    {
+        (Self::new(), M::make_default_handle())
     }
 }
 
-impl<'a, T: MakeDefaultHandle<Out = T>> Default for GenericMetricLayer<'a, T> {
+impl<'a, T, M> Default for GenericMetricLayer<'a, T, M>
+where
+    M: MakeDefaultHandle<Out = T>,
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'a, S, T> Layer<S> for GenericMetricLayer<'a, T> {
+impl<'a, S, T, M> Layer<S> for GenericMetricLayer<'a, T, M> {
     type Service = LifeCycle<S, SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>>;
 
     fn layer(&self, inner: S) -> Self::Service {
@@ -564,9 +576,13 @@ pub trait MakeDefaultHandle {
     fn make_default_handle() -> Self::Out;
 }
 
+/// The default handle for the Prometheus exporter.
+#[derive(Clone)]
+pub struct Handle(pub PrometheusHandle);
+
 #[cfg(feature = "prometheus")]
-impl MakeDefaultHandle for PrometheusHandle {
-    type Out = Self;
+impl MakeDefaultHandle for Handle {
+    type Out = PrometheusHandle;
 
     fn make_default_handle() -> Self::Out {
         PrometheusBuilder::new()
@@ -587,4 +603,4 @@ impl MakeDefaultHandle for PrometheusHandle {
 
 #[cfg(feature = "prometheus")]
 /// The tower middleware layer for recording http metrics with Prometheus.
-pub type PrometheusMetricLayer<'a> = GenericMetricLayer<'a, PrometheusHandle>;
+pub type PrometheusMetricLayer<'a> = GenericMetricLayer<'a, PrometheusHandle, Handle>;
