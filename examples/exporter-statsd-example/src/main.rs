@@ -10,8 +10,7 @@ use metrics_exporter_statsd::StatsdBuilder;
 use std::net::SocketAddr;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-// A marker struct for the custom StatsD exporter. Must implement `Clone`, because calling `.layer(..)` requires it.
-#[derive(Clone)]
+// A marker struct for the custom StatsD exporter.
 struct Recorder;
 
 // In order to use this with `axum_prometheus`, we must implement `MakeDefaultHandle`.

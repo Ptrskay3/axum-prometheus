@@ -101,9 +101,7 @@
 //! use metrics_exporter_statsd::StatsdBuilder;
 //! use axum_prometheus::{MakeDefaultHandle, GenericMetricLayer};
 //!
-//! // A marker struct for the custom StatsD exporter. Must implement `Clone`,
-//! // because calling `.layer(..)` requires it.
-//! #[derive(Clone)]
+//! // A marker struct for the custom StatsD exporter.
 //! struct Recorder;
 //!
 //! // In order to use this with `axum_prometheus`, we must implement `MakeDefaultHandle`.
@@ -381,10 +379,19 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
 }
 
 /// The tower middleware layer for recording http metrics with different exporters.
-#[derive(Clone)]
 pub struct GenericMetricLayer<'a, T, M> {
     pub(crate) inner_layer: LifeCycleLayer<SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>>,
     _marker: PhantomData<(T, M)>,
+}
+
+// We don't require that `T` nor `M` is `Clone`, since none of them is actually contained in this type.
+impl<'a, T, M> std::clone::Clone for GenericMetricLayer<'a, T, M> {
+    fn clone(&self) -> Self {
+        GenericMetricLayer {
+            inner_layer: self.inner_layer.clone(),
+            _marker: self._marker.clone(),
+        }
+    }
 }
 
 impl<'a, T, M> GenericMetricLayer<'a, T, M>
