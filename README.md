@@ -60,7 +60,7 @@ Add `axum-prometheus` to your `Cargo.toml`.
 
 ```toml
 [dependencies]
-axum-prometheus = "0.3.4"
+axum-prometheus = "0.4.0"
 ```
 
 Then you instantiate the prometheus middleware:
@@ -119,7 +119,7 @@ axum_http_requests_duration_seconds_count{method="GET",status="200",endpoint="/m
 This crate may be used with other exporters than Prometheus. First, disable the default features:
 
 ```toml
-axum-prometheus = { version = "0.3.4", default-features = false }
+axum-prometheus = { version = "0.4.0", default-features = false }
 ```
 
 Then implement the `MakeDefaultHandle` for the provider you'd like to use. For `StatsD`:
