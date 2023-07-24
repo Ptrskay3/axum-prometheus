@@ -548,24 +548,23 @@ pub trait MakeDefaultHandle {
     /// pub struct Handle(pub PrometheusHandle);
     ///
     /// impl MakeDefaultHandle for Handle {
-    ///     type Out = Self;
+    ///     type Out = PrometheusHandle;
     ///
     ///     fn make_default_handle() -> Self::Out {
-    ///         let handle = PrometheusBuilder::new()
+    ///         PrometheusBuilder::new()
     ///             .set_buckets_for_metric(
     ///                 Matcher::Full(requests_duration_name().to_string()),
     ///                 SECONDS_DURATION_BUCKETS,
     ///             )
     ///             .unwrap()
     ///             .install_recorder()
-    ///             .unwrap();
-    ///         Self(handle)
+    ///             .unwrap()
     ///     }
     /// }
     /// ```
     /// and then, to use it:
     /// ```rust,ignore
-    /// let (layer, Handle(handle)) =  GenericMetricLayer::<'_, Handle>::pair();
+    /// let (layer, handle) =  GenericMetricLayer::<'_, _, Handle>::pair();
     /// ```
     fn make_default_handle() -> Self::Out;
 }
