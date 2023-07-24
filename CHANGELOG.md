@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 -
 
+# [0.4.0] - 2023-07-24
+
+### Added
+
+- Support for different exporters than Prometheus. Developers now allowed to use their own exporter - as long as it's using the `metrics.rs` ecosystem. This is meant to be a non-breaking change - if you're using Prometheus, you shouldn't notice any changes in the public API. If you do however, please file an issue! [\#28]
+- An example showcasing `StatsD` exporter [\#28]
+- Simple snapshot tests [\#28]
+- Utility functions to get metric names at runtime [\#28]
+
+### Fixed
+
+- Previous attempts to fix `PrometheusMetricBuilder::with_prefix` in 0.3.4 were not complete, this is now fully addressed. [\#28]
+
 # [0.3.4] - 2023-07-16
 
 ### Fixed
@@ -70,10 +83,12 @@ All notable changes to this project will be documented in this file.
 
 First version.
 
-[unreleased]: https://github.com/Ptrskay3/axum-prometheus/compare/master...release/0.3.4
+[unreleased]: https://github.com/Ptrskay3/axum-prometheus/compare/master...release/0.4.0
 [0.2.0]: https://github.com/Ptrskay3/axum-prometheus/compare/9fb600d7d9ac2e6d38e6399119fc7ba7f25d5fe0...756dc67bf2baae2de406e012bdaa2334ce0fcdcb
 [0.3.0]: https://github.com/Ptrskay3/axum-prometheus/compare/axum-0.6...release/0.3
 [0.3.1]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.3...release/0.3.1
 [0.3.2]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.3.1...release/0.3.2
 [0.3.3]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.3.2...release/0.3.3
 [0.3.4]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.3.3...release/0.3.4
+[0.4.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.3.4...release/0.4.0
+[\#28]: https://github.com/Ptrskay3/axum-prometheus/pull/28
