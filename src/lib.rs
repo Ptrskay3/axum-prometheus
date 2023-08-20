@@ -1,6 +1,6 @@
 //!A middleware to collect HTTP metrics for Axum applications.
 //!
-//! `axum-prometheus` relies on [`metrics.rs`](https://metrics.rs/) and its ecosystem to collect and export metrics - for instance for Prometheus, `metrics_exporter_prometheus` is used as a backed to interact with Prometheus.
+//! `axum-prometheus` relies on [`metrics.rs`](https://metrics.rs/) and its ecosystem to collect and export metrics - for instance for Prometheus, `metrics_exporter_prometheus` is used as a backend to interact with Prometheus.
 //!
 //! ## Metrics
 //!
