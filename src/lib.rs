@@ -285,6 +285,7 @@ pub struct MetricsData {
     pub endpoint: String,
     pub start: Instant,
     pub method: &'static str,
+    pub body_size: usize,
 }
 
 impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
@@ -335,6 +336,7 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
             endpoint,
             start: now,
             method,
+            body_size: 0,
         })
     }
 
@@ -380,7 +382,8 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
 
 /// The tower middleware layer for recording http metrics with different exporters.
 pub struct GenericMetricLayer<'a, T, M> {
-    pub(crate) inner_layer: LifeCycleLayer<SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>>,
+    pub(crate) inner_layer:
+        LifeCycleLayer<SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>, ()>,
     _marker: PhantomData<(T, M)>,
 }
 
@@ -455,7 +458,7 @@ where
     pub fn new() -> Self {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
-        let inner_layer = LifeCycleLayer::new(make_classifier, Traffic::new());
+        let inner_layer = LifeCycleLayer::new(make_classifier, Traffic::new(), ());
         Self {
             inner_layer,
             _marker: PhantomData,
@@ -465,7 +468,7 @@ where
     pub(crate) fn from_builder(builder: MetricLayerBuilder<'a, T, M, LayerOnly>) -> Self {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
-        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic);
+        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic, ());
         Self {
             inner_layer,
             _marker: PhantomData,
@@ -475,7 +478,7 @@ where
     pub(crate) fn pair_from_builder(builder: MetricLayerBuilder<'a, T, M, Paired>) -> (Self, T) {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
-        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic);
+        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic, ());
 
         (
             Self {
@@ -531,7 +534,7 @@ where
 }
 
 impl<'a, S, T, M> Layer<S> for GenericMetricLayer<'a, T, M> {
-    type Service = LifeCycle<S, SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>>;
+    type Service = LifeCycle<S, SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>, ()>;
 
     fn layer(&self, inner: S) -> Self::Service {
         self.inner_layer.layer(inner)

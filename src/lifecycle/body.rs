@@ -1,4 +1,4 @@
-use super::{Callbacks, FailedAt};
+use super::{future::OnBodyChunk, Callbacks, FailedAt};
 use futures_core::ready;
 use http_body::Body;
 use pin_project::pin_project;
@@ -11,18 +11,23 @@ use tower_http::classify::ClassifyEos;
 
 /// Response body for [`LifeCycle`].
 #[pin_project]
-pub struct ResponseBody<B, C, Callbacks, CallbacksData> {
+pub struct ResponseBody<B, C, Callbacks, OnBodyChunk, CallbacksData> {
     #[pin]
     pub(super) inner: B,
-    pub(super) parts: Option<(C, Callbacks, CallbacksData)>,
+    pub(super) parts: Option<(C, Callbacks)>,
+    pub(super) callbacks_data: CallbacksData,
+    pub(super) on_body_chunk: OnBodyChunk,
 }
 
-impl<B, C, CallbacksT, CallbacksData> Body for ResponseBody<B, C, CallbacksT, CallbacksData>
+impl<B, C, CallbacksT, OnBodyChunkT, CallbacksData> Body
+    for ResponseBody<B, C, CallbacksT, OnBodyChunkT, CallbacksData>
 where
     B: Body,
     B::Error: fmt::Display + 'static,
     C: ClassifyEos,
     CallbacksT: Callbacks<C::FailureClass, Data = CallbacksData>,
+    OnBodyChunkT: OnBodyChunk<B::Data, Data = CallbacksData>,
+    CallbacksData: Clone,
 {
     type Data = B::Data;
     type Error = B::Error;
@@ -33,21 +38,28 @@ where
     ) -> Poll<Option<Result<Self::Data, Self::Error>>> {
         let this = self.project();
 
-        let result = ready!(this.inner.poll_data(cx));
+        let result = if let Some(result) = ready!(this.inner.poll_data(cx)) {
+            result
+        } else {
+            return Poll::Ready(None);
+        };
 
         match result {
-            None => Poll::Ready(None),
-            Some(Ok(chunk)) => {
-                if let Some((_, callbacks, callbacks_data)) = &this.parts {
-                    callbacks.on_body_chunk(&chunk, callbacks_data);
-                }
+            Ok(chunk) => {
+                this.on_body_chunk
+                    .on_body_chunk(&chunk, this.callbacks_data);
 
                 Poll::Ready(Some(Ok(chunk)))
             }
-            Some(Err(err)) => {
-                if let Some((classify_eos, callbacks, callbacks_data)) = this.parts.take() {
+            Err(err) => {
+                if let Some((classify_eos, callbacks)) = this.parts.take() {
                     let classification = classify_eos.classify_error(&err);
-                    callbacks.on_failure(FailedAt::Body, classification, callbacks_data);
+                    // TODO: Don't take callbacks_data by move
+                    callbacks.on_failure(
+                        FailedAt::Body,
+                        classification,
+                        this.callbacks_data.clone(),
+                    );
                 }
 
                 Poll::Ready(Some(Err(err)))
@@ -65,18 +77,22 @@ where
 
         match result {
             Ok(trailers) => {
-                if let Some((classify_eos, callbacks, callbacks_data)) = this.parts.take() {
+                if let Some((classify_eos, callbacks)) = this.parts.take() {
                     let trailers = trailers.as_ref();
                     let classification = classify_eos.classify_eos(trailers);
-                    callbacks.on_eos(trailers, classification, callbacks_data);
+                    callbacks.on_eos(trailers, classification, this.callbacks_data.clone());
                 }
 
                 Poll::Ready(Ok(trailers))
             }
             Err(err) => {
-                if let Some((classify_eos, callbacks, callbacks_data)) = this.parts.take() {
+                if let Some((classify_eos, callbacks)) = this.parts.take() {
                     let classification = classify_eos.classify_error(&err);
-                    callbacks.on_failure(FailedAt::Trailers, classification, callbacks_data);
+                    callbacks.on_failure(
+                        FailedAt::Trailers,
+                        classification,
+                        this.callbacks_data.clone(),
+                    );
                 }
 
                 Poll::Ready(Err(err))

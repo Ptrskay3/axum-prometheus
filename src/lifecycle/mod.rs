@@ -54,6 +54,7 @@ pub trait Callbacks<FailureClass>: Sized {
     ) {
     }
 
+    /// TODO: Remove this
     /// Perform some action when a response body chunk has been generated.
     ///
     /// This is called when [`Body::poll_data`] completes with `Some(Ok(chunk))`
