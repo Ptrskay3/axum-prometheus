@@ -23,6 +23,10 @@ impl<MC, Callbacks, OnBodyChunk> LifeCycleLayer<MC, Callbacks, OnBodyChunk> {
             on_body_chunk,
         }
     }
+
+    pub(crate) fn on_body_chunk(&mut self, on_body_chunk: OnBodyChunk) {
+        self.on_body_chunk = on_body_chunk;
+    }
 }
 
 impl<S, MC, Callbacks, OnBodyChunk> Layer<S> for LifeCycleLayer<MC, Callbacks, OnBodyChunk>

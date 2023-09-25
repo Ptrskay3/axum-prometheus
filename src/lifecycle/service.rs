@@ -6,10 +6,7 @@ use tower::Service;
 use tower_http::classify::MakeClassifier;
 
 use super::{
-    body::ResponseBody,
-    future::{OnBodyChunk, ResponseFuture},
-    layer::LifeCycleLayer,
-    Callbacks,
+    body::ResponseBody, future::ResponseFuture, layer::LifeCycleLayer, Callbacks, OnBodyChunk,
 };
 
 #[derive(Clone, Debug)]

@@ -1,4 +1,4 @@
-use super::{future::OnBodyChunk, Callbacks, FailedAt};
+use super::{Callbacks, FailedAt, OnBodyChunk};
 use futures_core::ready;
 use http_body::Body;
 use pin_project::pin_project;
@@ -54,12 +54,7 @@ where
             Err(err) => {
                 if let Some((classify_eos, callbacks)) = this.parts.take() {
                     let classification = classify_eos.classify_error(&err);
-                    // TODO: Don't take callbacks_data by move
-                    callbacks.on_failure(
-                        FailedAt::Body,
-                        classification,
-                        this.callbacks_data.clone(),
-                    );
+                    callbacks.on_failure(FailedAt::Body, classification, this.callbacks_data);
                 }
 
                 Poll::Ready(Some(Err(err)))
@@ -88,11 +83,7 @@ where
             Err(err) => {
                 if let Some((classify_eos, callbacks)) = this.parts.take() {
                     let classification = classify_eos.classify_error(&err);
-                    callbacks.on_failure(
-                        FailedAt::Trailers,
-                        classification,
-                        this.callbacks_data.clone(),
-                    );
+                    callbacks.on_failure(FailedAt::Trailers, classification, this.callbacks_data);
                 }
 
                 Poll::Ready(Err(err))

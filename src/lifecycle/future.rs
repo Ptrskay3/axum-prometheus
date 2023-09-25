@@ -9,9 +9,7 @@ use std::{
 };
 use tower_http::classify::{ClassifiedResponse, ClassifyResponse};
 
-use crate::MetricsData;
-
-use super::{body::ResponseBody, Callbacks, FailedAt};
+use super::{body::ResponseBody, Callbacks, FailedAt, OnBodyChunk};
 
 #[pin_project]
 pub struct ResponseFuture<F, C, Callbacks, OnBodyChunk, CallbackData> {
@@ -21,34 +19,6 @@ pub struct ResponseFuture<F, C, Callbacks, OnBodyChunk, CallbackData> {
     pub(super) callbacks: Option<Callbacks>,
     pub(super) on_body_chunk: Option<OnBodyChunk>,
     pub(super) callbacks_data: Option<CallbackData>,
-}
-
-pub trait OnBodyChunk<B> {
-    type Data;
-
-    #[inline]
-    fn on_body_chunk(&mut self, _body: &B, _data: &mut Self::Data) {
-        println!("on body chunk with data");
-    }
-}
-
-impl<B> OnBodyChunk<B> for ()
-where
-    B: bytes::Buf,
-{
-    type Data = Option<MetricsData>;
-
-    #[inline]
-    fn on_body_chunk(&mut self, body: &B, data: &mut Self::Data) {
-        if let Some(metrics_data) = data {
-            metrics_data.body_size += body.remaining();
-            let labels = &[
-                ("method", metrics_data.method.to_owned()),
-                ("endpoint", metrics_data.endpoint.clone()),
-            ];
-            metrics::histogram!("axum_http_body_size", metrics_data.body_size as f64, labels);
-        }
-    }
 }
 
 impl<F, C, CallbacksData, ResBody, E, CallbacksT, OnBodyChunkT> Future
@@ -83,7 +53,10 @@ where
             .take()
             .expect("polled future after completion");
 
-        let on_body_chunk = this.on_body_chunk.take().unwrap();
+        let on_body_chunk = this
+            .on_body_chunk
+            .take()
+            .expect("polled future after completion");
 
         match result {
             Ok(res) => {
@@ -122,7 +95,7 @@ where
             }
             Err(err) => {
                 let classification = classifier.classify_error(&err);
-                callbacks.on_failure(FailedAt::Response, classification, callbacks_data);
+                callbacks.on_failure(FailedAt::Response, classification, &mut callbacks_data);
                 Poll::Ready(Err(err))
             }
         }

@@ -184,6 +184,7 @@ pub use builder::MetricLayerBuilder;
 pub use builder::PrometheusMetricLayerBuilder;
 use builder::{LayerOnly, Paired};
 use lifecycle::layer::LifeCycleLayer;
+use lifecycle::OnBodyChunk;
 use lifecycle::{service::LifeCycle, Callbacks};
 use metrics::{decrement_gauge, histogram, increment_counter, increment_gauge};
 use once_cell::sync::OnceCell;
@@ -285,7 +286,46 @@ pub struct MetricsData {
     pub endpoint: String,
     pub start: Instant,
     pub method: &'static str,
-    pub body_size: usize,
+    pub body_size: f64,
+}
+
+#[derive(Clone)]
+pub struct BodySizeRecorder;
+
+impl<'a, B> OnBodyChunk<B> for BodySizeRecorder
+where
+    B: bytes::Buf,
+{
+    type Data = Option<MetricsData>;
+
+    #[inline]
+    fn on_body_chunk(&mut self, body: &B, data: &mut Self::Data) {
+        let Some(metrics_data) = data else { return };
+        // TODO: This is not lossless, and edge cases should be taken into account.
+        metrics_data.body_size += body.remaining() as f64;
+        let labels = &[
+            ("method", metrics_data.method.to_owned()),
+            ("endpoint", metrics_data.endpoint.clone()),
+        ];
+        metrics::histogram!(
+            "axum_http_response_body_size",
+            metrics_data.body_size,
+            labels
+        );
+    }
+}
+
+impl<T, B> OnBodyChunk<B> for Option<T>
+where
+    T: OnBodyChunk<B>,
+{
+    type Data = T::Data;
+
+    fn on_body_chunk(&mut self, body: &B, data: &mut Self::Data) {
+        if let Some(this) = self {
+            T::on_body_chunk(this, body, data);
+        }
+    }
 }
 
 impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
@@ -336,7 +376,7 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
             endpoint,
             start: now,
             method,
-            body_size: 0,
+            body_size: 0.0,
         })
     }
 
@@ -382,8 +422,11 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
 
 /// The tower middleware layer for recording http metrics with different exporters.
 pub struct GenericMetricLayer<'a, T, M> {
-    pub(crate) inner_layer:
-        LifeCycleLayer<SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>, ()>,
+    pub(crate) inner_layer: LifeCycleLayer<
+        SharedClassifier<StatusInRangeAsFailures>,
+        Traffic<'a>,
+        Option<BodySizeRecorder>,
+    >,
     _marker: PhantomData<(T, M)>,
 }
 
@@ -458,17 +501,21 @@ where
     pub fn new() -> Self {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
-        let inner_layer = LifeCycleLayer::new(make_classifier, Traffic::new(), ());
+        let inner_layer = LifeCycleLayer::new(make_classifier, Traffic::new(), None);
         Self {
             inner_layer,
             _marker: PhantomData,
         }
     }
 
+    pub fn enable_response_body_size(&mut self) {
+        self.inner_layer.on_body_chunk(Some(BodySizeRecorder));
+    }
+
     pub(crate) fn from_builder(builder: MetricLayerBuilder<'a, T, M, LayerOnly>) -> Self {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
-        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic, ());
+        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic, None);
         Self {
             inner_layer,
             _marker: PhantomData,
@@ -478,7 +525,7 @@ where
     pub(crate) fn pair_from_builder(builder: MetricLayerBuilder<'a, T, M, Paired>) -> (Self, T) {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
-        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic, ());
+        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic, None);
 
         (
             Self {
@@ -534,7 +581,12 @@ where
 }
 
 impl<'a, S, T, M> Layer<S> for GenericMetricLayer<'a, T, M> {
-    type Service = LifeCycle<S, SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>, ()>;
+    type Service = LifeCycle<
+        S,
+        SharedClassifier<StatusInRangeAsFailures>,
+        Traffic<'a>,
+        Option<BodySizeRecorder>,
+    >;
 
     fn layer(&self, inner: S) -> Self::Service {
         self.inner_layer.layer(inner)

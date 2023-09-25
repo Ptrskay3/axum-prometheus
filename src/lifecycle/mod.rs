@@ -119,9 +119,16 @@ pub trait Callbacks<FailureClass>: Sized {
         self,
         _failed_at: FailedAt,
         _failure_classification: FailureClass,
-        _data: Self::Data,
+        _data: &mut Self::Data,
     ) {
     }
+}
+
+pub trait OnBodyChunk<B> {
+    type Data;
+
+    #[inline]
+    fn on_body_chunk(&mut self, _body: &B, _data: &mut Self::Data) {}
 }
 
 /// Enum used to specify where an error was encountered.
