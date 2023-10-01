@@ -128,7 +128,14 @@ pub trait OnBodyChunk<B> {
     type Data;
 
     #[inline]
-    fn on_body_chunk(&mut self, _body: &B, _data: &mut Self::Data) {}
+    fn call(&mut self, _body: &B, _data: &mut Self::Data, _exact_body_size: Option<u64>) {}
+}
+
+pub trait OnExactBodySize {
+    type Data;
+
+    #[inline]
+    fn call(&mut self, _size: u64, _data: &mut Self::Data) {}
 }
 
 /// Enum used to specify where an error was encountered.

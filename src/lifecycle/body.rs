@@ -1,4 +1,4 @@
-use super::{Callbacks, FailedAt, OnBodyChunk};
+use super::{Callbacks, FailedAt, OnBodyChunk, OnExactBodySize};
 use futures_core::ready;
 use http_body::Body;
 use pin_project::pin_project;
@@ -11,22 +11,24 @@ use tower_http::classify::ClassifyEos;
 
 /// Response body for [`LifeCycle`].
 #[pin_project]
-pub struct ResponseBody<B, C, Callbacks, OnBodyChunk, CallbacksData> {
+pub struct ResponseBody<B, C, Callbacks, OnBodyChunk, OnExactBodySize, CallbacksData> {
     #[pin]
     pub(super) inner: B,
     pub(super) parts: Option<(C, Callbacks)>,
     pub(super) callbacks_data: CallbacksData,
     pub(super) on_body_chunk: OnBodyChunk,
+    pub(super) on_exact_body_size: OnExactBodySize,
 }
 
-impl<B, C, CallbacksT, OnBodyChunkT, CallbacksData> Body
-    for ResponseBody<B, C, CallbacksT, OnBodyChunkT, CallbacksData>
+impl<B, C, CallbacksT, OnBodyChunkT, OnExactBodySizeT, CallbacksData> Body
+    for ResponseBody<B, C, CallbacksT, OnBodyChunkT, OnExactBodySizeT, CallbacksData>
 where
     B: Body,
     B::Error: fmt::Display + 'static,
     C: ClassifyEos,
     CallbacksT: Callbacks<C::FailureClass, Data = CallbacksData>,
     OnBodyChunkT: OnBodyChunk<B::Data, Data = CallbacksData>,
+    OnExactBodySizeT: OnExactBodySize<Data = CallbacksData>,
     CallbacksData: Clone,
 {
     type Data = B::Data;
@@ -38,16 +40,21 @@ where
     ) -> Poll<Option<Result<Self::Data, Self::Error>>> {
         let this = self.project();
 
+        let body_size = this.inner.size_hint().exact();
         let result = if let Some(result) = ready!(this.inner.poll_data(cx)) {
             result
         } else {
             return Poll::Ready(None);
         };
 
+        if let Some(exact_size) = body_size {
+            this.on_exact_body_size
+                .call(exact_size, this.callbacks_data);
+        }
+
         match result {
             Ok(chunk) => {
-                this.on_body_chunk
-                    .on_body_chunk(&chunk, this.callbacks_data);
+                this.on_body_chunk.call(&chunk, this.callbacks_data, body_size);
 
                 Poll::Ready(Some(Ok(chunk)))
             }

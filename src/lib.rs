@@ -172,6 +172,8 @@ pub static PREFIXED_HTTP_REQUESTS_PENDING: OnceCell<String> = OnceCell::new();
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::time::Instant;
 
 mod builder;
@@ -185,6 +187,7 @@ pub use builder::PrometheusMetricLayerBuilder;
 use builder::{LayerOnly, Paired};
 use lifecycle::layer::LifeCycleLayer;
 use lifecycle::OnBodyChunk;
+use lifecycle::OnExactBodySize;
 use lifecycle::{service::LifeCycle, Callbacks};
 use metrics::{decrement_gauge, histogram, increment_counter, increment_gauge};
 use once_cell::sync::OnceCell;
@@ -287,19 +290,24 @@ pub struct MetricsData {
     pub start: Instant,
     pub method: &'static str,
     pub body_size: f64,
+    pub(crate) exact_body_size_called: Arc<AtomicBool>,
 }
 
 #[derive(Clone)]
 pub struct BodySizeRecorder;
 
-impl<'a, B> OnBodyChunk<B> for BodySizeRecorder
+impl<B> OnBodyChunk<B> for BodySizeRecorder
 where
     B: bytes::Buf,
 {
     type Data = Option<MetricsData>;
 
     #[inline]
-    fn on_body_chunk(&mut self, body: &B, data: &mut Self::Data) {
+    fn call(&mut self, body: &B, data: &mut Self::Data, body_size: Option<u64>) {
+        // If the exact body size is known ahead of time, `OnExactBodySize` will take care of this logic.
+        if body_size.is_some() {
+            return;
+        }
         let Some(metrics_data) = data else { return };
         // TODO: This is not lossless, and edge cases should be taken into account.
         metrics_data.body_size += body.remaining() as f64;
@@ -315,15 +323,53 @@ where
     }
 }
 
+impl OnExactBodySize for BodySizeRecorder {
+    type Data = Option<MetricsData>;
+
+    fn call(&mut self, exact_size: u64, data: &mut Self::Data) {
+        let Some(metrics_data) = data else { return };
+        if !metrics_data
+            .exact_body_size_called
+            // TODO: Is Relaxed ordering ok here?
+            .swap(true, std::sync::atomic::Ordering::Relaxed)
+        {
+            // TODO: This is not lossless, and edge cases should be taken into account.
+            metrics_data.body_size = exact_size as f64;
+            let labels = &[
+                ("method", metrics_data.method.to_owned()),
+                ("endpoint", metrics_data.endpoint.clone()),
+            ];
+            metrics::histogram!(
+                "axum_http_response_body_size",
+                metrics_data.body_size,
+                labels
+            );
+        }
+    }
+}
+
+impl<T> OnExactBodySize for Option<T>
+where
+    T: OnExactBodySize,
+{
+    type Data = T::Data;
+
+    fn call(&mut self, size: u64, data: &mut Self::Data) {
+        if let Some(this) = self {
+            T::call(this, size, data);
+        }
+    }
+}
+
 impl<T, B> OnBodyChunk<B> for Option<T>
 where
     T: OnBodyChunk<B>,
 {
     type Data = T::Data;
 
-    fn on_body_chunk(&mut self, body: &B, data: &mut Self::Data) {
+    fn call(&mut self, body: &B, data: &mut Self::Data, body_size: Option<u64>) {
         if let Some(this) = self {
-            T::on_body_chunk(this, body, data);
+            T::call(this, body, data, body_size);
         }
     }
 }
@@ -377,6 +423,7 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
             start: now,
             method,
             body_size: 0.0,
+            exact_body_size_called: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -425,6 +472,7 @@ pub struct GenericMetricLayer<'a, T, M> {
     pub(crate) inner_layer: LifeCycleLayer<
         SharedClassifier<StatusInRangeAsFailures>,
         Traffic<'a>,
+        Option<BodySizeRecorder>,
         Option<BodySizeRecorder>,
     >,
     _marker: PhantomData<(T, M)>,
@@ -501,7 +549,7 @@ where
     pub fn new() -> Self {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
-        let inner_layer = LifeCycleLayer::new(make_classifier, Traffic::new(), None);
+        let inner_layer = LifeCycleLayer::new(make_classifier, Traffic::new(), None, None);
         Self {
             inner_layer,
             _marker: PhantomData,
@@ -510,12 +558,13 @@ where
 
     pub fn enable_response_body_size(&mut self) {
         self.inner_layer.on_body_chunk(Some(BodySizeRecorder));
+        self.inner_layer.on_exact_body_size(Some(BodySizeRecorder));
     }
 
     pub(crate) fn from_builder(builder: MetricLayerBuilder<'a, T, M, LayerOnly>) -> Self {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
-        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic, None);
+        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic, None, None);
         Self {
             inner_layer,
             _marker: PhantomData,
@@ -525,7 +574,7 @@ where
     pub(crate) fn pair_from_builder(builder: MetricLayerBuilder<'a, T, M, Paired>) -> (Self, T) {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
-        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic, None);
+        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic, None, None);
 
         (
             Self {
@@ -585,6 +634,7 @@ impl<'a, S, T, M> Layer<S> for GenericMetricLayer<'a, T, M> {
         S,
         SharedClassifier<StatusInRangeAsFailures>,
         Traffic<'a>,
+        Option<BodySizeRecorder>,
         Option<BodySizeRecorder>,
     >;
 
