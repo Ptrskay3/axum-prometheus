@@ -54,7 +54,8 @@ where
 
         match result {
             Ok(chunk) => {
-                this.on_body_chunk.call(&chunk, this.callbacks_data, body_size);
+                this.on_body_chunk
+                    .call(&chunk, body_size, this.callbacks_data);
 
                 Poll::Ready(Some(Ok(chunk)))
             }

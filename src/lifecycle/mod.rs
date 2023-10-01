@@ -54,18 +54,6 @@ pub trait Callbacks<FailureClass>: Sized {
     ) {
     }
 
-    /// TODO: Remove this
-    /// Perform some action when a response body chunk has been generated.
-    ///
-    /// This is called when [`Body::poll_data`] completes with `Some(Ok(chunk))`
-    /// regardless if the chunk is empty or not.
-    ///
-    /// The default implementation does nothing and returns immediately.
-    ///
-    /// [`Body::poll_data`]: http_body::Body::poll_data
-    #[inline]
-    fn on_body_chunk<B: Buf>(&self, _check: &B, _data: &Self::Data) {}
-
     /// Perform some action when a stream has ended.
     ///
     /// This is called when [`Body::poll_trailers`] completes with
@@ -124,16 +112,30 @@ pub trait Callbacks<FailureClass>: Sized {
     }
 }
 
-pub trait OnBodyChunk<B> {
+/// A trait that allows to hook into [`http_body::Body::poll_data`]'s lifecycle.
+pub trait OnBodyChunk<B: Buf> {
     type Data;
 
+    /// Perform some action when a response body chunk has been generated.
+    ///
+    /// This is called when [`Body::poll_data`] completes with `Some(Ok(chunk))`
+    /// regardless if the chunk is empty or not.
+    ///
+    /// The default implementation does nothing and returns immediately.
+    ///
+    /// [`Body::poll_data`]: http_body::Body::poll_data
     #[inline]
-    fn call(&mut self, _body: &B, _data: &mut Self::Data, _exact_body_size: Option<u64>) {}
+    fn call(&mut self, _body: &B, _exact_body_size: Option<u64>, _data: &mut Self::Data) {}
 }
 
+/// A trait that allows to hook into [`http_body::Body::poll_data`]'s lifecycle.
 pub trait OnExactBodySize {
     type Data;
 
+    /// Perform some action when a response body's exact size is known ahead of time (that is,
+    /// [`http_body::SizeHint::exact`] returns `Some(size)`).
+    ///
+    /// The default implementation does nothing and returns immediately.
     #[inline]
     fn call(&mut self, _size: u64, _data: &mut Self::Data) {}
 }

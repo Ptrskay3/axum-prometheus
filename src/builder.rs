@@ -58,6 +58,7 @@ pub struct MetricLayerBuilder<'a, T, M, S: MetricBuilderState> {
     pub(crate) traffic: Traffic<'a>,
     pub(crate) metric_handle: Option<T>,
     pub(crate) metric_prefix: Option<String>,
+    pub(crate) enable_body_size: bool,
     pub(crate) _marker: PhantomData<(S, M)>,
 }
 
@@ -144,6 +145,15 @@ where
         self.traffic.with_endpoint_label_type(endpoint_label);
         self
     }
+
+    /// Enable response body size tracking.
+    /// 
+    /// #### Note:
+    /// This is not zero cost, it may introduce some performance overhead.
+    pub fn enable_response_body_size(mut self, enable: bool) -> Self {
+        self.enable_body_size = enable;
+        self
+    }
 }
 
 impl<'a, T, M> MetricLayerBuilder<'a, T, M, LayerOnly>
@@ -157,6 +167,7 @@ where
             traffic: Traffic::new(),
             metric_handle: None,
             metric_prefix: None,
+            enable_body_size: false,
         }
     }
 
@@ -254,6 +265,7 @@ where
             traffic: layer_only.traffic,
             metric_handle: layer_only.metric_handle,
             metric_prefix: layer_only.metric_prefix,
+            enable_body_size: layer_only.enable_body_size,
         }
     }
 }

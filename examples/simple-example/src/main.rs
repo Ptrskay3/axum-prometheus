@@ -18,8 +18,7 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let (mut prometheus_layer, metric_handle) = axum_prometheus::PrometheusMetricLayer::pair();
-    prometheus_layer.enable_response_body_size();
+    let (prometheus_layer, metric_handle) = axum_prometheus::PrometheusMetricLayer::pair();
     let app = Router::new()
         .route("/fast", get(|| async { "Hello" }))
         .route(
