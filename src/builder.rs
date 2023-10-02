@@ -177,7 +177,9 @@ where
     ///  - `{prefix}_http_requests_pending`
     ///  - `{prefix}_http_requests_duration_seconds`
     ///
-    /// Note that this will take precedence over environment variables.
+    /// ..and will also use `{prefix}_http_response_body_size`, if response body size tracking is enabled.
+    /// 
+    /// This method will take precedence over environment variables.
     ///
     /// ## Note
     ///

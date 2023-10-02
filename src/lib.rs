@@ -9,7 +9,7 @@
 //! - `axum_http_requests_duration_seconds` (labels: endpoint, method, status): the request duration for all HTTP requests handled (histogram)
 //! - `axum_http_requests_pending` (labels: endpoint, method): the number of currently in-flight requests (gauge)
 //!
-//! Note that in the future request size metric is also planned to be implemented.
+//! This crate also allows to track response body sizes as a histogram — see [`PrometheusMetricLayerBuilder::enable_response_body_size`].
 //!
 //! ### Renaming Metrics
 //!  
@@ -17,6 +17,7 @@
 //! - `AXUM_HTTP_REQUESTS_TOTAL`
 //! - `AXUM_HTTP_REQUESTS_DURATION_SECONDS`
 //! - `AXUM_HTTP_REQUESTS_PENDING`
+//! - `AXUM_HTTP_RESPONSE_BODY_SIZE` (if body size tracking is enabled)
 //!
 //! These environmental variables can be set in your `.cargo/config.toml` since Cargo 1.56:
 //! ```toml
@@ -24,6 +25,7 @@
 //! AXUM_HTTP_REQUESTS_TOTAL = "my_app_requests_total"
 //! AXUM_HTTP_REQUESTS_DURATION_SECONDS = "my_app_requests_duration_seconds"
 //! AXUM_HTTP_REQUESTS_PENDING = "my_app_requests_pending"
+//! AXUM_HTTP_RESPONSE_BODY_SIZE = "my_app_response_body_size"
 //! ```
 //!
 //! ..or optionally use [`PrometheusMetricLayerBuilder::with_prefix`] function.
@@ -222,7 +224,6 @@ fn set_prefix(prefix: impl AsRef<str>) {
     PREFIXED_HTTP_REQUESTS_TOTAL
         .set(format!("{}_http_requests_total", prefix.as_ref()))
         .expect("the prefix has already been set, and can only be set once.");
-
     PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
         .set(format!(
             "{}_http_requests_duration_seconds",
@@ -302,6 +303,7 @@ pub struct MetricsData {
     pub start: Instant,
     pub method: &'static str,
     pub body_size: f64,
+    // FIXME: Unclear at the moment, maybe just a simple bool could suffice here?
     pub(crate) exact_body_size_called: Arc<AtomicBool>,
 }
 
@@ -320,8 +322,12 @@ where
         if body_size.is_some() {
             return;
         }
-        let Some(metrics_data) = data else { return };
-        // TODO: This is not lossless, and edge cases should be taken into account.
+        let metrics_data = if let Some(metrics_data) = data {
+            metrics_data
+        } else {
+            return;
+        };
+        // If the body size is enormous, we lose some precision. It shouldn't matter really.
         metrics_data.body_size += body.remaining() as f64;
         let labels = &[
             ("method", metrics_data.method.to_owned()),
@@ -338,13 +344,16 @@ impl OnExactBodySize for BodySizeRecorder {
     type Data = Option<MetricsData>;
 
     fn call(&mut self, exact_size: u64, data: &mut Self::Data) {
-        let Some(metrics_data) = data else { return };
+        let metrics_data = if let Some(metrics_data) = data {
+            metrics_data
+        } else {
+            return;
+        };
         if !metrics_data
             .exact_body_size_called
-            // TODO: Is Relaxed ordering ok here?
             .swap(true, std::sync::atomic::Ordering::Relaxed)
         {
-            // TODO: This is not lossless, and edge cases should be taken into account.
+            // If the body size is enormous, we lose some precision. It shouldn't matter really.
             metrics_data.body_size = exact_size as f64;
             let labels = &[
                 ("method", metrics_data.method.to_owned()),

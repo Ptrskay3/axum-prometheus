@@ -135,6 +135,9 @@ pub trait OnExactBodySize {
     /// Perform some action when a response body's exact size is known ahead of time (that is,
     /// [`http_body::SizeHint::exact`] returns `Some(size)`).
     ///
+    /// This is called when [`Body::poll_data`] completes with `Some(_)`
+    /// regardless if the inner chunk is errored or not.
+    ///
     /// The default implementation does nothing and returns immediately.
     #[inline]
     fn call(&mut self, _size: u64, _data: &mut Self::Data) {}

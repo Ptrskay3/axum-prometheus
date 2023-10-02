@@ -63,12 +63,10 @@ where
             .callbacks_data
             .take()
             .expect("polled future after completion");
-
         let on_body_chunk = this
             .on_body_chunk
             .take()
             .expect("polled future after completion");
-
         let on_exact_body_size = this
             .on_exact_body_size
             .take()
