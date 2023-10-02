@@ -1,3 +1,4 @@
+//! Utilities for getting metric names at runtime, and other helpers.
 use http::Method;
 
 use crate::{

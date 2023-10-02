@@ -20,7 +20,7 @@ async fn main() {
 
     let (prometheus_layer, metric_handle) = axum_prometheus::PrometheusMetricLayer::pair();
     let app = Router::new()
-        .route("/fast", get(|| async { "Hello" }))
+        .route("/fast", get(|| async {}))
         .route(
             "/slow",
             get(|| async {
