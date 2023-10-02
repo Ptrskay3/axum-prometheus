@@ -1,5 +1,6 @@
 use super::{Callbacks, FailedAt, OnBodyChunk, OnExactBodySize};
 use futures_core::ready;
+use http::HeaderValue;
 use http_body::Body;
 use pin_project::pin_project;
 use std::{
@@ -18,6 +19,7 @@ pub struct ResponseBody<B, C, Callbacks, OnBodyChunk, OnExactBodySize, Callbacks
     pub(super) callbacks_data: CallbacksData,
     pub(super) on_body_chunk: OnBodyChunk,
     pub(super) on_exact_body_size: OnExactBodySize,
+    pub(super) content_length: Option<HeaderValue>,
 }
 
 impl<B, C, CallbacksT, OnBodyChunkT, OnExactBodySizeT, CallbacksData> Body
@@ -46,6 +48,13 @@ where
         } else {
             return Poll::Ready(None);
         };
+
+        let body_size = body_size.or_else(|| {
+            this.content_length
+                .as_ref()
+                .and_then(|cl| cl.to_str().ok())
+                .and_then(|cl| cl.parse().ok())
+        });
 
         if let Some(exact_size) = body_size {
             this.on_exact_body_size

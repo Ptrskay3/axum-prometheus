@@ -74,6 +74,7 @@ where
 
         match result {
             Ok(res) => {
+                let content_length = res.headers().get(http::header::CONTENT_LENGTH).cloned();
                 let classification = classifier.classify_response(&res);
 
                 match classification {
@@ -89,6 +90,7 @@ where
                             on_body_chunk,
                             callbacks_data: callbacks_data.clone(),
                             on_exact_body_size,
+                            content_length,
                         });
                         Poll::Ready(Ok(res))
                     }
@@ -104,6 +106,7 @@ where
                             on_body_chunk,
                             parts: Some((classify_eos, callbacks)),
                             on_exact_body_size,
+                            content_length,
                         });
                         Poll::Ready(Ok(res))
                     }

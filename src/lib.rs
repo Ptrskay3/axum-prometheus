@@ -307,6 +307,8 @@ pub struct MetricsData {
     pub(crate) exact_body_size_called: Arc<AtomicBool>,
 }
 
+/// A marker struct that implements [`lifecycle::OnBodyChunk`] and [`lifecycle::OnExactBodySize`], so
+/// it can be used to track response body sizes.
 #[derive(Clone)]
 pub struct BodySizeRecorder;
 
