@@ -136,7 +136,7 @@ pub trait OnExactBodySize {
     /// [`http_body::SizeHint::exact`] returns `Some(size)`).
     ///
     /// This is called when [`Body::poll_data`] completes with `Some(_)`
-    /// regardless if the inner chunk is errored or not.
+    /// regardless if the inner chunk is errored or not. It's called before `OnBodyChunk::call`.
     ///
     /// The default implementation does nothing and returns immediately.
     #[inline]
