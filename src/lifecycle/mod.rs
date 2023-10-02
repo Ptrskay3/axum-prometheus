@@ -139,6 +139,8 @@ pub trait OnExactBodySize {
     /// regardless if the inner chunk is errored or not. It's called before `OnBodyChunk::call`.
     ///
     /// The default implementation does nothing and returns immediately.
+    ///
+    /// [`Body::poll_data`]: http_body::Body::poll_data
     #[inline]
     fn call(&mut self, _size: u64, _data: &mut Self::Data) {}
 }

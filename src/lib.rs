@@ -503,7 +503,7 @@ impl<'a, T, M> std::clone::Clone for GenericMetricLayer<'a, T, M> {
     fn clone(&self) -> Self {
         GenericMetricLayer {
             inner_layer: self.inner_layer.clone(),
-            _marker: self._marker.clone(),
+            _marker: self._marker,
         }
     }
 }

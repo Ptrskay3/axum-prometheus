@@ -147,7 +147,7 @@ where
     }
 
     /// Enable response body size tracking.
-    /// 
+    ///
     /// #### Note:
     /// This is not zero cost, it may introduce some performance overhead.
     pub fn enable_response_body_size(mut self, enable: bool) -> Self {
@@ -178,7 +178,7 @@ where
     ///  - `{prefix}_http_requests_duration_seconds`
     ///
     /// ..and will also use `{prefix}_http_response_body_size`, if response body size tracking is enabled.
-    /// 
+    ///
     /// This method will take precedence over environment variables.
     ///
     /// ## Note
