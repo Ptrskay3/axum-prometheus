@@ -128,23 +128,6 @@ pub trait OnBodyChunk<B: Buf> {
     fn call(&mut self, _body: &B, _exact_body_size: Option<u64>, _data: &mut Self::Data) {}
 }
 
-/// A trait that allows to hook into [`http_body::Body::poll_data`]'s lifecycle.
-pub trait OnExactBodySize {
-    type Data;
-
-    /// Perform some action when a response body's exact size is known ahead of time (that is,
-    /// [`http_body::SizeHint::exact`] returns `Some(size)`).
-    ///
-    /// This is called when [`Body::poll_data`] completes with `Some(_)`
-    /// regardless if the inner chunk is errored or not. It's called before `OnBodyChunk::call`.
-    ///
-    /// The default implementation does nothing and returns immediately.
-    ///
-    /// [`Body::poll_data`]: http_body::Body::poll_data
-    #[inline]
-    fn call(&mut self, _size: u64, _data: &mut Self::Data) {}
-}
-
 /// Enum used to specify where an error was encountered.
 #[derive(Debug)]
 pub enum FailedAt {

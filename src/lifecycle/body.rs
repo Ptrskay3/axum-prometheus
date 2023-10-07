@@ -1,4 +1,4 @@
-use super::{Callbacks, FailedAt, OnBodyChunk, OnExactBodySize};
+use super::{Callbacks, FailedAt, OnBodyChunk};
 use futures_core::ready;
 use http::HeaderValue;
 use http_body::Body;
@@ -12,25 +12,23 @@ use tower_http::classify::ClassifyEos;
 
 /// Response body for [`LifeCycle`].
 #[pin_project]
-pub struct ResponseBody<B, C, Callbacks, OnBodyChunk, OnExactBodySize, CallbacksData> {
+pub struct ResponseBody<B, C, Callbacks, OnBodyChunk, CallbacksData> {
     #[pin]
     pub(super) inner: B,
     pub(super) parts: Option<(C, Callbacks)>,
     pub(super) callbacks_data: CallbacksData,
     pub(super) on_body_chunk: OnBodyChunk,
-    pub(super) on_exact_body_size: OnExactBodySize,
     pub(super) content_length: Option<HeaderValue>,
 }
 
-impl<B, C, CallbacksT, OnBodyChunkT, OnExactBodySizeT, CallbacksData> Body
-    for ResponseBody<B, C, CallbacksT, OnBodyChunkT, OnExactBodySizeT, CallbacksData>
+impl<B, C, CallbacksT, OnBodyChunkT, CallbacksData> Body
+    for ResponseBody<B, C, CallbacksT, OnBodyChunkT, CallbacksData>
 where
     B: Body,
     B::Error: fmt::Display + 'static,
     C: ClassifyEos,
     CallbacksT: Callbacks<C::FailureClass, Data = CallbacksData>,
     OnBodyChunkT: OnBodyChunk<B::Data, Data = CallbacksData>,
-    OnExactBodySizeT: OnExactBodySize<Data = CallbacksData>,
     CallbacksData: Clone,
 {
     type Data = B::Data;
@@ -55,11 +53,6 @@ where
                 .and_then(|cl| cl.to_str().ok())
                 .and_then(|cl| cl.parse().ok())
         });
-
-        if let Some(exact_size) = body_size {
-            this.on_exact_body_size
-                .call(exact_size, this.callbacks_data);
-        }
 
         match result {
             Ok(chunk) => {

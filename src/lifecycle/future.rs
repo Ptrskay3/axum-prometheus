@@ -9,21 +9,20 @@ use std::{
 };
 use tower_http::classify::{ClassifiedResponse, ClassifyResponse};
 
-use super::{body::ResponseBody, Callbacks, FailedAt, OnBodyChunk, OnExactBodySize};
+use super::{body::ResponseBody, Callbacks, FailedAt, OnBodyChunk};
 
 #[pin_project]
-pub struct ResponseFuture<F, C, Callbacks, OnBodyChunk, OnExactBodySize, CallbackData> {
+pub struct ResponseFuture<F, C, Callbacks, OnBodyChunk, CallbackData> {
     #[pin]
     pub(super) inner: F,
     pub(super) classifier: Option<C>,
     pub(super) callbacks: Option<Callbacks>,
     pub(super) on_body_chunk: Option<OnBodyChunk>,
     pub(super) callbacks_data: Option<CallbackData>,
-    pub(super) on_exact_body_size: Option<OnExactBodySize>,
 }
 
-impl<F, C, CallbacksData, ResBody, E, CallbacksT, OnBodyChunkT, OnExactBodySizeT> Future
-    for ResponseFuture<F, C, CallbacksT, OnBodyChunkT, OnExactBodySizeT, CallbacksData>
+impl<F, C, CallbacksData, ResBody, E, CallbacksT, OnBodyChunkT> Future
+    for ResponseFuture<F, C, CallbacksT, OnBodyChunkT, CallbacksData>
 where
     F: Future<Output = Result<Response<ResBody>, E>>,
     ResBody: Body,
@@ -31,20 +30,10 @@ where
     CallbacksT: Callbacks<C::FailureClass, Data = CallbacksData>,
     E: std::fmt::Display + 'static,
     OnBodyChunkT: OnBodyChunk<ResBody::Data, Data = CallbacksData>,
-    OnExactBodySizeT: OnExactBodySize<Data = CallbacksData>,
     CallbacksData: Clone,
 {
     type Output = Result<
-        Response<
-            ResponseBody<
-                ResBody,
-                C::ClassifyEos,
-                CallbacksT,
-                OnBodyChunkT,
-                OnExactBodySizeT,
-                CallbacksT::Data,
-            >,
-        >,
+        Response<ResponseBody<ResBody, C::ClassifyEos, CallbacksT, OnBodyChunkT, CallbacksT::Data>>,
         E,
     >;
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -67,10 +56,6 @@ where
             .on_body_chunk
             .take()
             .expect("polled future after completion");
-        let on_exact_body_size = this
-            .on_exact_body_size
-            .take()
-            .expect("polled future after completion");
 
         match result {
             Ok(res) => {
@@ -89,7 +74,6 @@ where
                             parts: None,
                             on_body_chunk,
                             callbacks_data: callbacks_data.clone(),
-                            on_exact_body_size,
                             content_length,
                         });
                         Poll::Ready(Ok(res))
@@ -105,7 +89,6 @@ where
                             callbacks_data: callbacks_data.clone(),
                             on_body_chunk,
                             parts: Some((classify_eos, callbacks)),
-                            on_exact_body_size,
                             content_length,
                         });
                         Poll::Ready(Ok(res))
