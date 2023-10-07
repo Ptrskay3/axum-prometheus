@@ -14,7 +14,7 @@ async fn main() {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "endpoint-type-example=debug".into()),
+                .unwrap_or_else(|_| "endpoint_type_example=debug".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
