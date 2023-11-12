@@ -318,11 +318,7 @@ where
 
     #[inline]
     fn call(&mut self, body: &B, body_size: Option<u64>, data: &mut Self::Data) {
-        let metrics_data = if let Some(metrics_data) = data {
-            metrics_data
-        } else {
-            return;
-        };
+        let Some(metrics_data) = data else { return };
         // If the exact body size is known ahead of time, we'll just call this whole thing once.
         if let Some(exact_size) = body_size {
             if !metrics_data

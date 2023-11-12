@@ -15,6 +15,8 @@ struct Recorder;
 
 // In order to use this with `axum_prometheus`, we must implement `MakeDefaultHandle`.
 impl MakeDefaultHandle for Recorder {
+    // We don't need to return anything meaningful from here (unlike PrometheusHandle)
+    // Let's just return an empty tuple.
     type Out = ();
 
     fn make_default_handle() -> Self::Out {
@@ -26,9 +28,6 @@ impl MakeDefaultHandle for Recorder {
             .expect("Could not create StatsdRecorder");
 
         metrics::set_boxed_recorder(Box::new(recorder)).unwrap();
-        // We don't need to return anything meaningful from here (unlike PrometheusHandle)
-        // Let's just return an empty tuple.
-        ()
     }
 }
 

@@ -41,9 +41,7 @@ where
         let this = self.project();
 
         let body_size = this.inner.size_hint().exact();
-        let result = if let Some(result) = ready!(this.inner.poll_data(cx)) {
-            result
-        } else {
+        let Some(result) = ready!(this.inner.poll_data(cx)) else {
             return Poll::Ready(None);
         };
 
