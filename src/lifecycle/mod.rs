@@ -56,8 +56,8 @@ pub trait Callbacks<FailureClass>: Sized {
 
     /// Perform some action when a stream has ended.
     ///
-    /// This is called when [`Body::poll_trailers`] completes with
-    /// `Ok(trailers)` regardless if the trailers are classified as a failure.
+    /// This is called when [`Body::poll_frame`] produces `Ok(trailers)` with the [`Frame::into_trailers`] method,
+    /// regardless if the trailers are classified as a failure.
     ///
     /// A stream that ends successfully will trigger two callbacks.
     /// [`on_response`] will be called once the response has been generated and
@@ -71,7 +71,8 @@ pub trait Callbacks<FailureClass>: Sized {
     ///
     /// [`on_response`]: Callbacks::on_response
     /// [`on_eos`]: Callbacks::on_eos
-    /// [`Body::poll_trailers`]: http_body::Body::poll_trailers
+    /// [`Body::poll_frame`]: http_body::Body::poll_frame
+    /// [`Frame::into_trailers`]: http_body::Frame::into_trailers
     #[inline]
     fn on_eos(
         self,
@@ -86,8 +87,7 @@ pub trait Callbacks<FailureClass>: Sized {
     /// This method is only called in the following scenarios:
     ///
     /// - The inner [`Service`]'s response future resolves to an error.
-    /// - [`Body::poll_data`] returns an error.
-    /// - [`Body::poll_trailers`] returns an error.
+    /// - [`Body::poll_frame`] returns an error.
     ///
     /// That means this method is _not_ called if a response is classified as a
     /// failure (then [`on_response`] is called) or an end-of-stream is
@@ -101,8 +101,7 @@ pub trait Callbacks<FailureClass>: Sized {
     /// [`on_response`]: Callbacks::on_response
     /// [`on_eos`]: Callbacks::on_eos
     /// [`Service::call`]: tower::Service::call
-    /// [`Body::poll_data`]: http_body::Body::poll_data
-    /// [`Body::poll_trailers`]: http_body::Body::poll_trailers
+    /// [`Body::poll_frame`]: http_body::Body::poll_frame
     fn on_failure(
         self,
         _failed_at: FailedAt,
@@ -112,18 +111,19 @@ pub trait Callbacks<FailureClass>: Sized {
     }
 }
 
-/// A trait that allows to hook into [`http_body::Body::poll_data`]'s lifecycle.
+/// A trait that allows to hook into [`http_body::Body::poll_frame`]'s lifecycle.
 pub trait OnBodyChunk<B: Buf> {
     type Data;
 
     /// Perform some action when a response body chunk has been generated.
     ///
-    /// This is called when [`Body::poll_data`] completes with `Some(Ok(chunk))`
+    /// This is called when [`Body::poll_frame`] returns `Some(Ok(frame))`, and [`Frame::into_data`] returns with `Some(chunk)`,
     /// regardless if the chunk is empty or not.
     ///
     /// The default implementation does nothing and returns immediately.
     ///
-    /// [`Body::poll_data`]: http_body::Body::poll_data
+    /// [`Body::poll_frame`]: http_body::Body::poll_frame
+    /// [`Frame::into_data`]: http_body::Frame::into_data
     #[inline]
     fn call(&mut self, _body: &B, _exact_body_size: Option<u64>, _data: &mut Self::Data) {}
 }
