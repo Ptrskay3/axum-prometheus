@@ -59,6 +59,7 @@ pub struct MetricLayerBuilder<'a, T, M, S: MetricBuilderState> {
     pub(crate) metric_handle: Option<T>,
     pub(crate) metric_prefix: Option<String>,
     pub(crate) enable_body_size: bool,
+    pub(crate) no_initialize_metrics: bool,
     pub(crate) _marker: PhantomData<(S, M)>,
 }
 
@@ -149,9 +150,17 @@ where
     /// Enable response body size tracking.
     ///
     /// #### Note:
-    /// This is not zero cost, it may introduce some performance overhead.
+    /// This may introduce some performance overhead.
     pub fn enable_response_body_size(mut self, enable: bool) -> Self {
         self.enable_body_size = enable;
+        self
+    }
+
+    /// By default, all metrics are initialized via `metrics::describe_*` macros, setting descriptions and units.
+    ///
+    /// This function disables this initialization.
+    pub fn no_initialize_metrics(mut self) -> Self {
+        self.no_initialize_metrics = true;
         self
     }
 }
@@ -166,6 +175,7 @@ where
             _marker: PhantomData,
             traffic: Traffic::new(),
             metric_handle: None,
+            no_initialize_metrics: false,
             metric_prefix: None,
             enable_body_size: false,
         }
@@ -262,10 +272,14 @@ where
         if let Some(prefix) = layer_only.metric_prefix.as_ref() {
             set_prefix(prefix);
         }
+        if !layer_only.no_initialize_metrics {
+            describe_metrics(layer_only.enable_body_size);
+        }
         MetricLayerBuilder {
             _marker: PhantomData,
             traffic: layer_only.traffic,
             metric_handle: layer_only.metric_handle,
+            no_initialize_metrics: layer_only.no_initialize_metrics,
             metric_prefix: layer_only.metric_prefix,
             enable_body_size: layer_only.enable_body_size,
         }
@@ -287,3 +301,28 @@ where
 /// A builder for [`crate::PrometheusMetricLayer`] that enables further customizations.
 pub type PrometheusMetricLayerBuilder<'a, S> =
     MetricLayerBuilder<'a, PrometheusHandle, crate::Handle, S>;
+
+fn describe_metrics(enable_body_size: bool) {
+    metrics::describe_counter!(
+        crate::utils::requests_total_name(),
+        metrics::Unit::Count,
+        "The number of times a HTTP request was processed."
+    );
+    metrics::describe_gauge!(
+        crate::utils::requests_pending_name(),
+        metrics::Unit::Count,
+        "The number of currently in-flight requests."
+    );
+    metrics::describe_histogram!(
+        crate::utils::requests_duration_name(),
+        metrics::Unit::Seconds,
+        "The distribution of HTTP response times."
+    );
+    if enable_body_size {
+        metrics::describe_histogram!(
+            crate::utils::response_body_size_name(),
+            metrics::Unit::Count,
+            "The distribution of HTTP response body sizes."
+        );
+    }
+}
