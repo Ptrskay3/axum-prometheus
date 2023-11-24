@@ -10,8 +10,7 @@ categories = ["asynchronous", "network-programming", "web-programming", "develop
 repository = "https://github.com/Ptrskay3/axum-prometheus"
 
 [dependencies]
-axum-core = "0.3"
-axum = "0.6"
+axum = { git = "https://github.com/tokio-rs/axum", branch = "main" }
 futures = "0.3.23"
 http = "1.0.0"
 http-body = "1.0.0"
