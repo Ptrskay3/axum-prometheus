@@ -54,17 +54,6 @@ pub trait Callbacks<FailureClass>: Sized {
     ) {
     }
 
-    /// Perform some action when a response body chunk has been generated.
-    ///
-    /// This is called when [`Body::poll_data`] completes with `Some(Ok(chunk))`
-    /// regardless if the chunk is empty or not.
-    ///
-    /// The default implementation does nothing and returns immediately.
-    ///
-    /// [`Body::poll_data`]: http_body::Body::poll_data
-    #[inline]
-    fn on_body_chunk<B: Buf>(&self, _check: &B, _data: &Self::Data) {}
-
     /// Perform some action when a stream has ended.
     ///
     /// This is called when [`Body::poll_trailers`] completes with
@@ -118,9 +107,25 @@ pub trait Callbacks<FailureClass>: Sized {
         self,
         _failed_at: FailedAt,
         _failure_classification: FailureClass,
-        _data: Self::Data,
+        _data: &mut Self::Data,
     ) {
     }
+}
+
+/// A trait that allows to hook into [`http_body::Body::poll_data`]'s lifecycle.
+pub trait OnBodyChunk<B: Buf> {
+    type Data;
+
+    /// Perform some action when a response body chunk has been generated.
+    ///
+    /// This is called when [`Body::poll_data`] completes with `Some(Ok(chunk))`
+    /// regardless if the chunk is empty or not.
+    ///
+    /// The default implementation does nothing and returns immediately.
+    ///
+    /// [`Body::poll_data`]: http_body::Body::poll_data
+    #[inline]
+    fn call(&mut self, _body: &B, _exact_body_size: Option<u64>, _data: &mut Self::Data) {}
 }
 
 /// Enum used to specify where an error was encountered.

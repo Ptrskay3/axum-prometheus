@@ -9,7 +9,7 @@
 //! - `axum_http_requests_duration_seconds` (labels: endpoint, method, status): the request duration for all HTTP requests handled (histogram)
 //! - `axum_http_requests_pending` (labels: endpoint, method): the number of currently in-flight requests (gauge)
 //!
-//! Note that in the future request size metric is also planned to be implemented.
+//! This crate also allows to track response body sizes as a histogram — see [`PrometheusMetricLayerBuilder::enable_response_body_size`].
 //!
 //! ### Renaming Metrics
 //!  
@@ -17,6 +17,7 @@
 //! - `AXUM_HTTP_REQUESTS_TOTAL`
 //! - `AXUM_HTTP_REQUESTS_DURATION_SECONDS`
 //! - `AXUM_HTTP_REQUESTS_PENDING`
+//! - `AXUM_HTTP_RESPONSE_BODY_SIZE` (if body size tracking is enabled)
 //!
 //! These environmental variables can be set in your `.cargo/config.toml` since Cargo 1.56:
 //! ```toml
@@ -24,6 +25,7 @@
 //! AXUM_HTTP_REQUESTS_TOTAL = "my_app_requests_total"
 //! AXUM_HTTP_REQUESTS_DURATION_SECONDS = "my_app_requests_duration_seconds"
 //! AXUM_HTTP_REQUESTS_PENDING = "my_app_requests_pending"
+//! AXUM_HTTP_RESPONSE_BODY_SIZE = "my_app_response_body_size"
 //! ```
 //!
 //! ..or optionally use [`PrometheusMetricLayerBuilder::with_prefix`] function.
@@ -162,16 +164,27 @@ pub const AXUM_HTTP_REQUESTS_TOTAL: &str = match option_env!("AXUM_HTTP_REQUESTS
     None => "axum_http_requests_total",
 };
 
+/// Identifies the histogram/summary used for response body size. Defaults to `axum_http_response_body_size`,
+/// but can be changed by setting the `AXUM_HTTP_RESPONSE_BODY_SIZE` env at compile time.
+pub const AXUM_HTTP_RESPONSE_BODY_SIZE: &str = match option_env!("AXUM_HTTP_RESPONSE_BODY_SIZE") {
+    Some(n) => n,
+    None => "axum_http_response_body_size",
+};
+
 #[doc(hidden)]
 pub static PREFIXED_HTTP_REQUESTS_TOTAL: OnceCell<String> = OnceCell::new();
 #[doc(hidden)]
 pub static PREFIXED_HTTP_REQUESTS_DURATION_SECONDS: OnceCell<String> = OnceCell::new();
 #[doc(hidden)]
 pub static PREFIXED_HTTP_REQUESTS_PENDING: OnceCell<String> = OnceCell::new();
+#[doc(hidden)]
+pub static PREFIXED_HTTP_RESPONSE_BODY_SIZE: OnceCell<String> = OnceCell::new();
 
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::time::Instant;
 
 mod builder;
@@ -184,6 +197,7 @@ pub use builder::MetricLayerBuilder;
 pub use builder::PrometheusMetricLayerBuilder;
 use builder::{LayerOnly, Paired};
 use lifecycle::layer::LifeCycleLayer;
+use lifecycle::OnBodyChunk;
 use lifecycle::{service::LifeCycle, Callbacks};
 use metrics::{decrement_gauge, histogram, increment_counter, increment_gauge};
 use once_cell::sync::OnceCell;
@@ -209,7 +223,6 @@ fn set_prefix(prefix: impl AsRef<str>) {
     PREFIXED_HTTP_REQUESTS_TOTAL
         .set(format!("{}_http_requests_total", prefix.as_ref()))
         .expect("the prefix has already been set, and can only be set once.");
-
     PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
         .set(format!(
             "{}_http_requests_duration_seconds",
@@ -218,6 +231,9 @@ fn set_prefix(prefix: impl AsRef<str>) {
         .expect("the prefix has already been set, and can only be set once.");
     PREFIXED_HTTP_REQUESTS_PENDING
         .set(format!("{}_http_requests_pending", prefix.as_ref()))
+        .expect("the prefix has already been set, and can only be set once.");
+    PREFIXED_HTTP_RESPONSE_BODY_SIZE
+        .set(format!("{}_http_response_body_size", prefix.as_ref()))
         .expect("the prefix has already been set, and can only be set once.");
 }
 
@@ -285,6 +301,65 @@ pub struct MetricsData {
     pub endpoint: String,
     pub start: Instant,
     pub method: &'static str,
+    pub body_size: f64,
+    // FIXME: Unclear at the moment, maybe just a simple bool could suffice here?
+    pub(crate) exact_body_size_called: Arc<AtomicBool>,
+}
+
+/// A marker struct that implements [`lifecycle::OnBodyChunk`], so it can be used to track response body sizes.
+#[derive(Clone)]
+pub struct BodySizeRecorder;
+
+impl<B> OnBodyChunk<B> for BodySizeRecorder
+where
+    B: bytes::Buf,
+{
+    type Data = Option<MetricsData>;
+
+    #[inline]
+    fn call(&mut self, body: &B, body_size: Option<u64>, data: &mut Self::Data) {
+        let Some(metrics_data) = data else { return };
+        // If the exact body size is known ahead of time, we'll just call this whole thing once.
+        if let Some(exact_size) = body_size {
+            if !metrics_data
+                .exact_body_size_called
+                .swap(true, std::sync::atomic::Ordering::Relaxed)
+            {
+                // If the body size is enormous, we lose some precision. It shouldn't matter really.
+                metrics_data.body_size = exact_size as f64;
+                body_size_histogram(metrics_data);
+            }
+        } else {
+            // Otherwise, sum all the chunks.
+            metrics_data.body_size += body.remaining() as f64;
+            body_size_histogram(metrics_data);
+        }
+    }
+}
+
+impl<T, B> OnBodyChunk<B> for Option<T>
+where
+    T: OnBodyChunk<B>,
+    B: bytes::Buf,
+{
+    type Data = T::Data;
+
+    fn call(&mut self, body: &B, body_size: Option<u64>, data: &mut Self::Data) {
+        if let Some(this) = self {
+            T::call(this, body, body_size, data);
+        }
+    }
+}
+
+fn body_size_histogram(metrics_data: &MetricsData) {
+    let labels = &[
+        ("method", metrics_data.method.to_owned()),
+        ("endpoint", metrics_data.endpoint.clone()),
+    ];
+    let response_body_size = PREFIXED_HTTP_RESPONSE_BODY_SIZE
+        .get()
+        .map_or(AXUM_HTTP_RESPONSE_BODY_SIZE, |s| s.as_str());
+    metrics::histogram!(response_body_size, metrics_data.body_size, labels);
 }
 
 impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
@@ -335,6 +410,8 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
             endpoint,
             start: now,
             method,
+            body_size: 0.0,
+            exact_body_size_called: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -380,7 +457,11 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
 
 /// The tower middleware layer for recording http metrics with different exporters.
 pub struct GenericMetricLayer<'a, T, M> {
-    pub(crate) inner_layer: LifeCycleLayer<SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>>,
+    pub(crate) inner_layer: LifeCycleLayer<
+        SharedClassifier<StatusInRangeAsFailures>,
+        Traffic<'a>,
+        Option<BodySizeRecorder>,
+    >,
     _marker: PhantomData<(T, M)>,
 }
 
@@ -389,7 +470,7 @@ impl<'a, T, M> std::clone::Clone for GenericMetricLayer<'a, T, M> {
     fn clone(&self) -> Self {
         GenericMetricLayer {
             inner_layer: self.inner_layer.clone(),
-            _marker: self._marker.clone(),
+            _marker: self._marker,
         }
     }
 }
@@ -455,17 +536,25 @@ where
     pub fn new() -> Self {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
-        let inner_layer = LifeCycleLayer::new(make_classifier, Traffic::new());
+        let inner_layer = LifeCycleLayer::new(make_classifier, Traffic::new(), None);
         Self {
             inner_layer,
             _marker: PhantomData,
         }
     }
 
+    pub fn enable_response_body_size(&mut self) {
+        self.inner_layer.on_body_chunk(Some(BodySizeRecorder));
+    }
+
     pub(crate) fn from_builder(builder: MetricLayerBuilder<'a, T, M, LayerOnly>) -> Self {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
-        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic);
+        let inner_layer = if builder.enable_body_size {
+            LifeCycleLayer::new(make_classifier, builder.traffic, Some(BodySizeRecorder))
+        } else {
+            LifeCycleLayer::new(make_classifier, builder.traffic, None)
+        };
         Self {
             inner_layer,
             _marker: PhantomData,
@@ -475,7 +564,11 @@ where
     pub(crate) fn pair_from_builder(builder: MetricLayerBuilder<'a, T, M, Paired>) -> (Self, T) {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
-        let inner_layer = LifeCycleLayer::new(make_classifier, builder.traffic);
+        let inner_layer = if builder.enable_body_size {
+            LifeCycleLayer::new(make_classifier, builder.traffic, Some(BodySizeRecorder))
+        } else {
+            LifeCycleLayer::new(make_classifier, builder.traffic, None)
+        };
 
         (
             Self {
@@ -531,7 +624,12 @@ where
 }
 
 impl<'a, S, T, M> Layer<S> for GenericMetricLayer<'a, T, M> {
-    type Service = LifeCycle<S, SharedClassifier<StatusInRangeAsFailures>, Traffic<'a>>;
+    type Service = LifeCycle<
+        S,
+        SharedClassifier<StatusInRangeAsFailures>,
+        Traffic<'a>,
+        Option<BodySizeRecorder>,
+    >;
 
     fn layer(&self, inner: S) -> Self::Service {
         self.inner_layer.layer(inner)

@@ -9,28 +9,33 @@ use std::{
 };
 use tower_http::classify::{ClassifiedResponse, ClassifyResponse};
 
-use super::{body::ResponseBody, Callbacks, FailedAt};
+use super::{body::ResponseBody, Callbacks, FailedAt, OnBodyChunk};
 
 #[pin_project]
-pub struct ResponseFuture<F, C, Callbacks, CallbackData> {
+pub struct ResponseFuture<F, C, Callbacks, OnBodyChunk, CallbackData> {
     #[pin]
     pub(super) inner: F,
     pub(super) classifier: Option<C>,
     pub(super) callbacks: Option<Callbacks>,
+    pub(super) on_body_chunk: Option<OnBodyChunk>,
     pub(super) callbacks_data: Option<CallbackData>,
 }
 
-impl<F, C, CallbacksData, ResBody, E, CallbacksT> Future
-    for ResponseFuture<F, C, CallbacksT, CallbacksData>
+impl<F, C, CallbacksData, ResBody, E, CallbacksT, OnBodyChunkT> Future
+    for ResponseFuture<F, C, CallbacksT, OnBodyChunkT, CallbacksData>
 where
     F: Future<Output = Result<Response<ResBody>, E>>,
     ResBody: Body,
     C: ClassifyResponse,
     CallbacksT: Callbacks<C::FailureClass, Data = CallbacksData>,
     E: std::fmt::Display + 'static,
+    OnBodyChunkT: OnBodyChunk<ResBody::Data, Data = CallbacksData>,
+    CallbacksData: Clone,
 {
-    type Output =
-        Result<Response<ResponseBody<ResBody, C::ClassifyEos, CallbacksT, CallbacksT::Data>>, E>;
+    type Output = Result<
+        Response<ResponseBody<ResBody, C::ClassifyEos, CallbacksT, OnBodyChunkT, CallbacksT::Data>>,
+        E,
+    >;
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.project();
         let result = ready!(this.inner.poll(cx));
@@ -47,9 +52,14 @@ where
             .callbacks_data
             .take()
             .expect("polled future after completion");
+        let on_body_chunk = this
+            .on_body_chunk
+            .take()
+            .expect("polled future after completion");
 
         match result {
             Ok(res) => {
+                let content_length = res.headers().get(http::header::CONTENT_LENGTH).cloned();
                 let classification = classifier.classify_response(&res);
 
                 match classification {
@@ -62,6 +72,9 @@ where
                         let res = res.map(|body| ResponseBody {
                             inner: body,
                             parts: None,
+                            on_body_chunk,
+                            callbacks_data: callbacks_data.clone(),
+                            content_length,
                         });
                         Poll::Ready(Ok(res))
                     }
@@ -73,7 +86,10 @@ where
                         );
                         let res = res.map(|body| ResponseBody {
                             inner: body,
-                            parts: Some((classify_eos, callbacks, callbacks_data)),
+                            callbacks_data: callbacks_data.clone(),
+                            on_body_chunk,
+                            parts: Some((classify_eos, callbacks)),
+                            content_length,
                         });
                         Poll::Ready(Ok(res))
                     }
@@ -81,7 +97,7 @@ where
             }
             Err(err) => {
                 let classification = classifier.classify_error(&err);
-                callbacks.on_failure(FailedAt::Response, classification, callbacks_data);
+                callbacks.on_failure(FailedAt::Response, classification, &mut callbacks_data);
                 Poll::Ready(Err(err))
             }
         }

@@ -4,7 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
--
+### Added
+
+- Support for response body size metric, which can be turned on via `PrometheusMetricLayerBuilder::enable_response_body_size`.
+- All metrics now are initialized via `metrics::describe_*` function by default, but can be turned off with `PrometheusMetricLayerBuilder::no_initialize_metrics`.
+
+### Changed
+
+- The lower-level Lifecycle API has changed: separated the `OnBodyChunk` trait, which is ran when a response body chunk has been generated. 
 
 # [0.4.0] - 2023-07-24
 
