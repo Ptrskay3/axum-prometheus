@@ -2,7 +2,7 @@ mod common;
 use common::echo;
 
 use http::Request;
-use hyper::Body;
+use http_body_util::Full;
 use tower::{ServiceBuilder, ServiceExt};
 use tower_service::Service;
 
@@ -15,7 +15,7 @@ async fn metric_handle_rendered_correctly_with_prefix() {
 
     let mut service = ServiceBuilder::new().layer(layer).service_fn(echo);
 
-    let req = Request::builder().body(Body::empty()).unwrap();
+    let req = Request::builder().body(Full::default()).unwrap();
     let _res = service.ready().await.unwrap().call(req).await.unwrap();
     insta::with_settings!({
             filters =>

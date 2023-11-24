@@ -1,5 +1,5 @@
-use axum_core::response::Response;
 use futures_core::ready;
+use http::response::Response;
 use http_body::Body;
 use pin_project::pin_project;
 use std::{
