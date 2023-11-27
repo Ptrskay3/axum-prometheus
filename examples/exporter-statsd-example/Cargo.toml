@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-axum = { git = "https://github.com/tokio-rs/axum", branch = "main" }
+axum = "0.7.1"
 metrics = "0.21.0"
 tokio = { version = "1.0", features = ["full"] }
 tracing = "0.1"
