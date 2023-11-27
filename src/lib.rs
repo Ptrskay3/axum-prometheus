@@ -60,11 +60,10 @@
 //!         .route("/metrics", get(|| async move { metric_handle.render() }))
 //!         .layer(prometheus_layer);
 //!
-//!     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-//!     axum::Server::bind(&addr)
-//!         .serve(app.into_make_service())
+//!     let listener = tokio::net::TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 3000)))
 //!         .await
 //!         .unwrap();
+//!     axum::serve(listener, app).await.unwrap()
 //! }
 //! ```
 //!
@@ -515,7 +514,7 @@ where
     ///        .install_recorder()
     ///        .unwrap();
     ///
-    ///     let app = Router::new()
+    ///     let app = Router::<()>::new()
     ///       .route("/fast", get(|| async {}))
     ///       .route(
     ///           "/slow",
@@ -526,11 +525,11 @@ where
     ///       .route("/metrics", get(|| async move { metric_handle.render() }))
     ///       .layer(metric_layer);
     ///
-    ///    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    ///    let server = axum::Server::bind(&addr)
-    ///        .serve(app.into_make_service());
-    ///    // and to actually run the server:
-    ///    // server.await.unwrap();
+    ///    // Run the server as usual:
+    ///    // let listener = tokio::net::TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 3000)))
+    ///    //     .await
+    ///    //     .unwrap();
+    ///    // axum::serve(listener, app).await.unwrap()
     /// }
     /// ```
     pub fn new() -> Self {
@@ -543,6 +542,7 @@ where
         }
     }
 
+    // Enable tracking response body sizes.
     pub fn enable_response_body_size(&mut self) {
         self.inner_layer.on_body_chunk(Some(BodySizeRecorder));
     }
@@ -591,7 +591,7 @@ where
     /// async fn main() {
     ///     let (metric_layer, metric_handle) = PrometheusMetricLayer::pair();
     ///
-    ///     let app = Router::new()
+    ///     let app = Router::<()>::new()
     ///       .route("/fast", get(|| async {}))
     ///       .route(
     ///           "/slow",
@@ -602,11 +602,11 @@ where
     ///       .route("/metrics", get(|| async move { metric_handle.render() }))
     ///       .layer(metric_layer);
     ///
-    ///    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    ///    let server = axum::Server::bind(&addr)
-    ///        .serve(app.into_make_service());
-    ///    // and to actually run the server:
-    ///    // server.await.unwrap();
+    ///    // Run the server as usual:
+    ///    // let listener = tokio::net::TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 3000)))
+    ///    //     .await
+    ///    //     .unwrap();
+    ///    // axum::serve(listener, app).await.unwrap()
     /// }
     /// ```
     pub fn pair() -> (Self, T) {

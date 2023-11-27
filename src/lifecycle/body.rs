@@ -1,7 +1,7 @@
 use super::{Callbacks, FailedAt, OnBodyChunk};
 use futures_core::ready;
 use http::HeaderValue;
-use http_body::Body;
+use http_body::{Body, Frame};
 use pin_project::pin_project;
 use std::{
     fmt,
@@ -34,32 +34,49 @@ where
     type Data = B::Data;
     type Error = B::Error;
 
-    fn poll_data(
+    fn poll_frame(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<Self::Data, Self::Error>>> {
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
         let this = self.project();
 
-        let body_size = this.inner.size_hint().exact();
-        let Some(result) = ready!(this.inner.poll_data(cx)) else {
-            return Poll::Ready(None);
-        };
-
-        let body_size = body_size.or_else(|| {
+        let body_size = this.inner.size_hint().exact().or_else(|| {
             this.content_length
                 .as_ref()
                 .and_then(|cl| cl.to_str().ok())
                 .and_then(|cl| cl.parse().ok())
         });
+        let result = ready!(this.inner.poll_frame(cx));
 
         match result {
-            Ok(chunk) => {
-                this.on_body_chunk
-                    .call(&chunk, body_size, this.callbacks_data);
+            Some(Ok(frame)) => {
+                let frame = match frame.into_data() {
+                    Ok(chunk) => {
+                        this.on_body_chunk
+                            .call(&chunk, body_size, this.callbacks_data);
+                        Frame::data(chunk)
+                    }
+                    Err(frame) => frame,
+                };
 
-                Poll::Ready(Some(Ok(chunk)))
+                let frame = match frame.into_trailers() {
+                    Ok(trailers) => {
+                        if let Some((classify_eos, callbacks)) = this.parts.take() {
+                            let classification = classify_eos.classify_eos(Some(&trailers));
+                            callbacks.on_eos(
+                                Some(&trailers),
+                                classification,
+                                this.callbacks_data.clone(),
+                            );
+                        }
+                        Frame::trailers(trailers)
+                    }
+                    Err(frame) => frame,
+                };
+
+                Poll::Ready(Some(Ok(frame)))
             }
-            Err(err) => {
+            Some(Err(err)) => {
                 if let Some((classify_eos, callbacks)) = this.parts.take() {
                     let classification = classify_eos.classify_error(&err);
                     callbacks.on_failure(FailedAt::Body, classification, this.callbacks_data);
@@ -67,34 +84,12 @@ where
 
                 Poll::Ready(Some(Err(err)))
             }
-        }
-    }
-
-    fn poll_trailers(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<Option<http::HeaderMap>, Self::Error>> {
-        let this = self.project();
-
-        let result = ready!(this.inner.poll_trailers(cx));
-
-        match result {
-            Ok(trailers) => {
+            None => {
                 if let Some((classify_eos, callbacks)) = this.parts.take() {
-                    let trailers = trailers.as_ref();
-                    let classification = classify_eos.classify_eos(trailers);
-                    callbacks.on_eos(trailers, classification, this.callbacks_data.clone());
+                    let classification = classify_eos.classify_eos(None);
+                    callbacks.on_eos(None, classification, this.callbacks_data.clone());
                 }
-
-                Poll::Ready(Ok(trailers))
-            }
-            Err(err) => {
-                if let Some((classify_eos, callbacks)) = this.parts.take() {
-                    let classification = classify_eos.classify_error(&err);
-                    callbacks.on_failure(FailedAt::Trailers, classification, this.callbacks_data);
-                }
-
-                Poll::Ready(Err(err))
+                Poll::Ready(None)
             }
         }
     }

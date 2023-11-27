@@ -75,7 +75,7 @@ use axum_prometheus::PrometheusMetricLayer;
 #[tokio::main]
 async fn main() {
     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
-    let app = Router::new()
+    let app = Router::<()>::new()
         .route("/fast", get(|| async {}))
         .route(
             "/slow",
@@ -86,11 +86,11 @@ async fn main() {
         .route("/metrics", get(|| async move { metric_handle.render() }))
         .layer(prometheus_layer);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
+
+    let listener = tokio::net::TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 3000)))
         .await
         .unwrap();
+    axum::serve(listener, app).await.unwrap();
 }
 ```
 
