@@ -2,16 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+# [Unreleased]
+
+-
+
+# [0.5.0] - 2023-11-27
 
 ### Added
 
-- Support for response body size metric, which can be turned on via `PrometheusMetricLayerBuilder::enable_response_body_size`.
-- All metrics now are initialized via `metrics::describe_*` function by default, but can be turned off with `PrometheusMetricLayerBuilder::no_initialize_metrics`.
+- Support for response body size metric, which can be turned on via `PrometheusMetricLayerBuilder::enable_response_body_size`. [\#33]
+- All metrics now are initialized via `metrics::describe_*` function by default, but can be turned off with `PrometheusMetricLayerBuilder::no_initialize_metrics`. [\#33]
+- Compatibility with `http-body = "1.0"` and`axum = "0.7"`. [\#36]
 
 ### Changed
 
-- The lower-level Lifecycle API has changed: separated the `OnBodyChunk` trait, which is ran when a response body chunk has been generated. 
+- The lower-level Lifecycle API has changed: separated the `OnBodyChunk` trait, which is ran when a response body chunk has been generated. [#\33]
 
 # [0.4.0] - 2023-07-24
 
@@ -98,4 +103,5 @@ First version.
 [0.3.3]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.3.2...release/0.3.3
 [0.3.4]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.3.3...release/0.3.4
 [0.4.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.3.4...release/0.4.0
+[0.5.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.4.0...release/0.5.0
 [\#28]: https://github.com/Ptrskay3/axum-prometheus/pull/28
