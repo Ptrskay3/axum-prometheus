@@ -53,6 +53,7 @@ AXUM_HTTP_RESPONSE_BODY_SIZE = "my_app_response_body_size"
 | ------------ | ------------- |
 | `0.5`        | `0.1`         |
 | `0.6`        | `0.2`, `0.3`, `0.4`  |
+| `0.7`        | `0.5`         |
 
 ## Usage
 
@@ -62,7 +63,7 @@ Add `axum-prometheus` to your `Cargo.toml`.
 
 ```toml
 [dependencies]
-axum-prometheus = "0.4.0"
+axum-prometheus = "0.5.0"
 ```
 
 Then you instantiate the prometheus middleware:
@@ -121,7 +122,7 @@ axum_http_requests_duration_seconds_count{method="GET",status="200",endpoint="/m
 This crate may be used with other exporters than Prometheus. First, disable the default features:
 
 ```toml
-axum-prometheus = { version = "0.4.0", default-features = false }
+axum-prometheus = { version = "0.5.0", default-features = false }
 ```
 
 Then implement the `MakeDefaultHandle` for the provider you'd like to use. For `StatsD`:
