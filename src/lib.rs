@@ -198,7 +198,7 @@ use builder::{LayerOnly, Paired};
 use lifecycle::layer::LifeCycleLayer;
 use lifecycle::OnBodyChunk;
 use lifecycle::{service::LifeCycle, Callbacks};
-use metrics::{decrement_gauge, histogram, increment_counter, increment_gauge};
+use metrics::{counter, gauge, histogram};
 use once_cell::sync::OnceCell;
 use tower::Layer;
 use tower_http::classify::{ClassifiedResponse, SharedClassifier, StatusInRangeAsFailures};
@@ -358,7 +358,7 @@ fn body_size_histogram(metrics_data: &MetricsData) {
     let response_body_size = PREFIXED_HTTP_RESPONSE_BODY_SIZE
         .get()
         .map_or(AXUM_HTTP_RESPONSE_BODY_SIZE, |s| s.as_str());
-    metrics::histogram!(response_body_size, metrics_data.body_size, labels);
+    metrics::histogram!(response_body_size, labels).record(metrics_data.body_size);
 }
 
 impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
@@ -396,14 +396,14 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
         let requests_pending = PREFIXED_HTTP_REQUESTS_PENDING
             .get()
             .map_or(AXUM_HTTP_REQUESTS_PENDING, |s| s.as_str());
-        increment_gauge!(
+        gauge!(
             requests_pending,
-            1.0,
             &[
                 ("method", method.to_owned()),
                 ("endpoint", endpoint.clone()),
             ]
-        );
+        )
+        .increment(1.0);
 
         Some(MetricsData {
             endpoint,
@@ -426,14 +426,14 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
             let requests_pending = PREFIXED_HTTP_REQUESTS_PENDING
                 .get()
                 .map_or(AXUM_HTTP_REQUESTS_PENDING, |s| s.as_str());
-            decrement_gauge!(
+            gauge!(
                 requests_pending,
-                1.0,
                 &[
                     ("method", data.method.to_string()),
                     ("endpoint", data.endpoint.to_string()),
                 ]
-            );
+            )
+            .decrement(1.0);
 
             let labels = [
                 ("method", data.method.to_string()),
@@ -444,12 +444,12 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
             let requests_total = PREFIXED_HTTP_REQUESTS_TOTAL
                 .get()
                 .map_or(AXUM_HTTP_REQUESTS_TOTAL, |s| s.as_str());
-            increment_counter!(requests_total, &labels);
+            counter!(requests_total, &labels).increment(1);
 
             let requests_duration = PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
                 .get()
                 .map_or(AXUM_HTTP_REQUESTS_DURATION_SECONDS, |s| s.as_str());
-            histogram!(requests_duration, duration_seconds, &labels);
+            histogram!(requests_duration, &labels).record(duration_seconds);
         }
     }
 }
