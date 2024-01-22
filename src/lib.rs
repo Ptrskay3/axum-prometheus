@@ -37,7 +37,7 @@
 //! Add `axum-prometheus` to your `Cargo.toml`.
 //! ```not_rust
 //! [dependencies]
-//! axum-prometheus = "0.5.0"
+//! axum-prometheus = "0.6.0"
 //! ```
 //!
 //! Then you instantiate the prometheus middleware:
@@ -93,7 +93,7 @@
 //! This crate may be used with other exporters than Prometheus. First, disable the default features:
 //!
 //! ```toml
-//! axum-prometheus = { version = "0.5.0", default-features = false }
+//! axum-prometheus = { version = "0.6.0", default-features = false }
 //! ```
 //!
 //! Then implement the `MakeDefaultHandle` for the provider you'd like to use. For `StatsD`:

@@ -53,7 +53,7 @@ AXUM_HTTP_RESPONSE_BODY_SIZE = "my_app_response_body_size"
 | ------------ | ------------- |
 | `0.5`        | `0.1`         |
 | `0.6`        | `0.2`, `0.3`, `0.4`  |
-| `0.7`        | `0.5`         |
+| `0.7`        | `0.5`, `0.6`         |
 
 ## Usage
 
@@ -63,7 +63,7 @@ Add `axum-prometheus` to your `Cargo.toml`.
 
 ```toml
 [dependencies]
-axum-prometheus = "0.5.0"
+axum-prometheus = "0.6.0"
 ```
 
 Then you instantiate the prometheus middleware:
