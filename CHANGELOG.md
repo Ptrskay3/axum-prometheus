@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 
 -
 
+# [0.6.1] - 2024-01-23
+
+- Disabled the `"push-gateway"` feature in `metrics-exporter-prometheus` by default, and added a way to enable it via 
+  the same name under `axum_prometheus`. This change ensures that this crate can still be built without openssl support, see [here](https://github.com/Ptrskay3/axum-prometheus/issues/42). [\#44]
+- Update examples to `metrics-exporter-prometheus` to `0.13` and `metrics` to `0.22`. [\#43]
+
+
 # [0.6.0] - 2024-01-22
 
 - Update `metrics-exporter-prometheus` to `0.13` and `metrics` to `0.22`. [\#39]
@@ -99,7 +106,7 @@ All notable changes to this project will be documented in this file.
 
 First version.
 
-[unreleased]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.6.0..master
+[unreleased]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.6.1..master
 [0.2.0]: https://github.com/Ptrskay3/axum-prometheus/compare/9fb600d7d9ac2e6d38e6399119fc7ba7f25d5fe0...756dc67bf2baae2de406e012bdaa2334ce0fcdcb
 [0.3.0]: https://github.com/Ptrskay3/axum-prometheus/compare/axum-0.6...release/0.3
 [0.3.1]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.3...release/0.3.1
@@ -109,4 +116,5 @@ First version.
 [0.4.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.3.4...release/0.4.0
 [0.5.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.4.0...release/0.5.0
 [0.6.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.5.0...release/0.6.0
+[0.6.1]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.6.0...release/0.6.1
 [\#28]: https://github.com/Ptrskay3/axum-prometheus/pull/28
