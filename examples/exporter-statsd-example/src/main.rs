@@ -5,7 +5,7 @@
 //! ```
 
 use axum::{routing::get, Router};
-use axum_prometheus::{GenericMetricLayer, MakeDefaultHandle, metrics};
+use axum_prometheus::{metrics, GenericMetricLayer, MakeDefaultHandle};
 use metrics_exporter_statsd::StatsdBuilder;
 use std::net::SocketAddr;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
