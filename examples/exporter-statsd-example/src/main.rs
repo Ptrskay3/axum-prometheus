@@ -5,7 +5,7 @@
 //! ```
 
 use axum::{routing::get, Router};
-use axum_prometheus::{GenericMetricLayer, MakeDefaultHandle};
+use axum_prometheus::{metrics, GenericMetricLayer, MakeDefaultHandle};
 use metrics_exporter_statsd::StatsdBuilder;
 use std::net::SocketAddr;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -27,7 +27,7 @@ impl MakeDefaultHandle for Recorder {
             .build(Some("prefix"))
             .expect("Could not create StatsdRecorder");
 
-        metrics::set_boxed_recorder(Box::new(recorder)).unwrap();
+        metrics::set_global_recorder(recorder).unwrap();
     }
 }
 
