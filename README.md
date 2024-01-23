@@ -63,7 +63,7 @@ Add `axum-prometheus` to your `Cargo.toml`.
 
 ```toml
 [dependencies]
-axum-prometheus = "0.6.0"
+axum-prometheus = "0.6.1"
 ```
 
 Then you instantiate the prometheus middleware:
