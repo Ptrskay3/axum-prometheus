@@ -117,6 +117,10 @@ axum_http_requests_duration_seconds_sum{method="GET",status="200",endpoint="/met
 axum_http_requests_duration_seconds_count{method="GET",status="200",endpoint="/metrics"} 4
 ```
 
+Let's note that since `metrics-exporter-prometheus = "0.13"` that crate [introduced](https://github.com/metrics-rs/metrics/commit/d817f5c6f4909eeafbd9ff9ceadbf29302169bfa) the `push-gateway` default feature, that
+requires openssl support. The `axum_prometheus` crate __does not__ rely on, nor enable this feature by default — if you need it, 
+you may enable it through the `"push-gateway"` feature in `axum_prometheus`.
+
 ## Using a different exporter than Prometheus
 
 This crate may be used with other exporters than Prometheus. First, disable the default features:
