@@ -102,34 +102,51 @@
 //! use metrics_exporter_statsd::StatsdBuilder;
 //! use axum_prometheus::{MakeDefaultHandle, GenericMetricLayer};
 //!
-//! // A marker struct for the custom StatsD exporter.
-//! struct Recorder;
+//! // The custom StatsD exporter struct. It may take fields as well.
+//! struct Recorder { port: u16 }
 //!
 //! // In order to use this with `axum_prometheus`, we must implement `MakeDefaultHandle`.
 //! impl MakeDefaultHandle for Recorder {
+//!     // We don't need to return anything meaningful from here (unlike PrometheusHandle)
+//!     // Let's just return an empty tuple.
 //!     type Out = ();
 //!
-//!     fn make_default_handle() -> Self::Out {
-//!         // The regular setup for StatsD..
-//!         let recorder = StatsdBuilder::from("127.0.0.1", 8125)
+//!     fn make_default_handle(self) -> Self::Out {
+//!         // The regular setup for StatsD. Notice that `self` is passed in by value.
+//!         let recorder = StatsdBuilder::from("127.0.0.1", self.port)
 //!             .with_queue_size(5000)
 //!             .with_buffer_size(1024)
 //!             .build(Some("prefix"))
 //!             .expect("Could not create StatsdRecorder");
 //!
 //!         metrics::set_boxed_recorder(Box::new(recorder)).unwrap();
-//!         // We don't need to return anything meaningful from here (unlike PrometheusHandle)
-//!         // Let's just return an empty tuple.
-//!         ()
 //!     }
 //! }
 //!
 //! fn main() {
-//!     // ...
 //!     // Use `GenericMetricLayer` instead of `PrometheusMetricLayer`.
-//!     let (metric_layer, _handle) = GenericMetricLayer::<'_, _, Recorder>::pair();
-//!     // ...
+//!     // Generally `GenericMetricLayer::pair_from_init` is what you're looking for. 
+//!     // It lets you pass in a concrete initialized `Recorder`.
+//!     let (metric_layer, _handle) = GenericMetricLayer::pair_from_init(Recorder { port: 8125 });
+//! }
+//! ```
 //!
+//! It's also possible to use `GenericMetricLayer::pair`, however it's only callable if the recorder struct implements `Default` as well.
+//!
+//! ```rust,ignore
+//! use metrics_exporter_statsd::StatsdBuilder;
+//! use axum_prometheus::{MakeDefaultHandle, GenericMetricLayer};
+//!
+//! #[derive(Default)]
+//! struct Recorder { port: u16 }
+//!
+//! impl MakeDefaultHandle for Recorder {
+//!    /* .. same as before .. */
+//! }
+//!
+//! fn main() {
+//!     // This will internally call `Recorder::make_default_handle(Recorder::default)`.
+//!     let (metric_layer, _handle) = GenericMetricLayer::<_, Recorder>::pair();
 //! }
 //! ```
 //!
@@ -556,11 +573,37 @@ where
         }
     }
 
-    // Enable tracking response body sizes.
+    /// Enable tracking response body sizes.
     pub fn enable_response_body_size(&mut self) {
         self.inner_layer.on_body_chunk(Some(BodySizeRecorder));
     }
 
+    /// Crate a new tower middleware and a default exporter from the provided value of the passed in argument.
+    ///
+    /// This function is useful when additional data needs to be injected into `MakeDefaultHandle::make_default_handle`.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use axum_prometheus::{GenericMetricLayer, MakeDefaultHandle};
+    ///
+    /// struct Recorder { host: String }
+    ///
+    /// impl MakeDefaultHandle for Recorder {
+    ///     type Out = ();
+    ///
+    ///     fn make_default_handle(self) -> Self::Out {
+    ///         // Perform the initialization. `self` is passed in by value.
+    ///         todo!();
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///     let (metric_layer, metric_handle) = GenericMetricLayer::pair_from_init(
+    ///         Recorder { host: "0.0.0.0".to_string() }
+    ///     );
+    /// }
+    /// ```
     pub fn pair_from_init(m: M) -> (Self, T) {
         (Self::new(), M::make_default_handle(m))
     }
@@ -591,10 +634,13 @@ where
 
     /// Crate a new tower middleware and a default global Prometheus exporter with sensible defaults.
     ///
+    /// If used with a custom exporter that's different from Prometheus, the exporter struct
+    /// must implement `MakeDefaultHandle + Default`.
+    ///
     /// # Example
     /// ```
     /// use axum::{routing::get, Router};
-    /// use axum_prometheus::{PrometheusMetricLayer};
+    /// use axum_prometheus::PrometheusMetricLayer;
     /// use std::net::SocketAddr;
     ///
     /// #[tokio::main]
