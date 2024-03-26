@@ -102,34 +102,51 @@
 //! use metrics_exporter_statsd::StatsdBuilder;
 //! use axum_prometheus::{MakeDefaultHandle, GenericMetricLayer};
 //!
-//! // A marker struct for the custom StatsD exporter.
-//! struct Recorder;
+//! // The custom StatsD exporter struct. It may take fields as well.
+//! struct Recorder { port: u16 }
 //!
 //! // In order to use this with `axum_prometheus`, we must implement `MakeDefaultHandle`.
 //! impl MakeDefaultHandle for Recorder {
+//!     // We don't need to return anything meaningful from here (unlike PrometheusHandle)
+//!     // Let's just return an empty tuple.
 //!     type Out = ();
 //!
-//!     fn make_default_handle() -> Self::Out {
-//!         // The regular setup for StatsD..
-//!         let recorder = StatsdBuilder::from("127.0.0.1", 8125)
+//!     fn make_default_handle(self) -> Self::Out {
+//!         // The regular setup for StatsD. Notice that `self` is passed in by value.
+//!         let recorder = StatsdBuilder::from("127.0.0.1", self.port)
 //!             .with_queue_size(5000)
 //!             .with_buffer_size(1024)
 //!             .build(Some("prefix"))
 //!             .expect("Could not create StatsdRecorder");
 //!
 //!         metrics::set_boxed_recorder(Box::new(recorder)).unwrap();
-//!         // We don't need to return anything meaningful from here (unlike PrometheusHandle)
-//!         // Let's just return an empty tuple.
-//!         ()
 //!     }
 //! }
 //!
 //! fn main() {
-//!     // ...
 //!     // Use `GenericMetricLayer` instead of `PrometheusMetricLayer`.
-//!     let (metric_layer, _handle) = GenericMetricLayer::<'_, _, Recorder>::pair();
-//!     // ...
+//!     // Generally `GenericMetricLayer::pair_from_init` is what you're looking for. 
+//!     // It lets you pass in a concrete initialized `Recorder`.
+//!     let (metric_layer, _handle) = GenericMetricLayer::pair_from_init(Recorder { port: 8125 });
+//! }
+//! ```
 //!
+//! It's also possible to use `GenericMetricLayer::pair`, however it's only callable if the recorder struct implements `Default` as well.
+//!
+//! ```rust,ignore
+//! use metrics_exporter_statsd::StatsdBuilder;
+//! use axum_prometheus::{MakeDefaultHandle, GenericMetricLayer};
+//!
+//! #[derive(Default)]
+//! struct Recorder { port: u16 }
+//!
+//! impl MakeDefaultHandle for Recorder {
+//!    /* .. same as before .. */
+//! }
+//!
+//! fn main() {
+//!     // This will internally call `Recorder::make_default_handle(Recorder::default)`.
+//!     let (metric_layer, _handle) = GenericMetricLayer::<_, Recorder>::pair();
 //! }
 //! ```
 //!
@@ -542,11 +559,6 @@ where
         }
     }
 
-    // Enable tracking response body sizes.
-    pub fn enable_response_body_size(&mut self) {
-        self.inner_layer.on_body_chunk(Some(BodySizeRecorder));
-    }
-
     pub(crate) fn from_builder(builder: MetricLayerBuilder<'a, T, M, LayerOnly>) -> Self {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
@@ -561,6 +573,45 @@ where
         }
     }
 
+    /// Enable tracking response body sizes.
+    pub fn enable_response_body_size(&mut self) {
+        self.inner_layer.on_body_chunk(Some(BodySizeRecorder));
+    }
+
+    /// Crate a new tower middleware and a default exporter from the provided value of the passed in argument.
+    ///
+    /// This function is useful when additional data needs to be injected into `MakeDefaultHandle::make_default_handle`.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use axum_prometheus::{GenericMetricLayer, MakeDefaultHandle};
+    ///
+    /// struct Recorder { host: String }
+    ///
+    /// impl MakeDefaultHandle for Recorder {
+    ///     type Out = ();
+    ///
+    ///     fn make_default_handle(self) -> Self::Out {
+    ///         // Perform the initialization. `self` is passed in by value.
+    ///         todo!();
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///     let (metric_layer, metric_handle) = GenericMetricLayer::pair_from_init(
+    ///         Recorder { host: "0.0.0.0".to_string() }
+    ///     );
+    /// }
+    /// ```
+    pub fn pair_from_init(m: M) -> (Self, T) {
+        (Self::new(), M::make_default_handle(m))
+    }
+}
+impl<'a, T, M> GenericMetricLayer<'a, T, M>
+where
+    M: MakeDefaultHandle<Out = T> + Default,
+{
     pub(crate) fn pair_from_builder(builder: MetricLayerBuilder<'a, T, M, Paired>) -> (Self, T) {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
@@ -575,16 +626,21 @@ where
                 inner_layer,
                 _marker: PhantomData,
             },
-            builder.metric_handle.unwrap_or_else(M::make_default_handle),
+            builder
+                .metric_handle
+                .unwrap_or_else(|| M::make_default_handle(M::default())),
         )
     }
 
     /// Crate a new tower middleware and a default global Prometheus exporter with sensible defaults.
     ///
+    /// If used with a custom exporter that's different from Prometheus, the exporter struct
+    /// must implement `MakeDefaultHandle + Default`.
+    ///
     /// # Example
     /// ```
     /// use axum::{routing::get, Router};
-    /// use axum_prometheus::{PrometheusMetricLayer};
+    /// use axum_prometheus::PrometheusMetricLayer;
     /// use std::net::SocketAddr;
     ///
     /// #[tokio::main]
@@ -610,7 +666,7 @@ where
     /// }
     /// ```
     pub fn pair() -> (Self, T) {
-        (Self::new(), M::make_default_handle())
+        (Self::new(), M::make_default_handle(M::default()))
     }
 }
 
@@ -638,6 +694,7 @@ impl<'a, S, T, M> Layer<S> for GenericMetricLayer<'a, T, M> {
 
 /// The trait that allows to use a metrics exporter in `GenericMetricLayer`.
 pub trait MakeDefaultHandle {
+    // TODO: Update the documentation example
     /// The type of the metrics handle to return from [`MetricLayerBuilder`].
     type Out;
 
@@ -655,7 +712,7 @@ pub trait MakeDefaultHandle {
     /// impl MakeDefaultHandle for Handle {
     ///     type Out = PrometheusHandle;
     ///
-    ///     fn make_default_handle() -> Self::Out {
+    ///     fn make_default_handle(self) -> Self::Out {
     ///         PrometheusBuilder::new()
     ///             .set_buckets_for_metric(
     ///                 Matcher::Full(requests_duration_name().to_string()),
@@ -671,7 +728,7 @@ pub trait MakeDefaultHandle {
     /// ```rust,ignore
     /// let (layer, handle) =  GenericMetricLayer::<'_, _, Handle>::pair();
     /// ```
-    fn make_default_handle() -> Self::Out;
+    fn make_default_handle(self) -> Self::Out;
 }
 
 /// The default handle for the Prometheus exporter.
@@ -680,23 +737,32 @@ pub trait MakeDefaultHandle {
 pub struct Handle(pub PrometheusHandle);
 
 #[cfg(feature = "prometheus")]
+impl Default for Handle {
+    fn default() -> Self {
+        Self(
+            PrometheusBuilder::new()
+                .set_buckets_for_metric(
+                    Matcher::Full(
+                        PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
+                            .get()
+                            .map_or(AXUM_HTTP_REQUESTS_DURATION_SECONDS, |s| s.as_str())
+                            .to_string(),
+                    ),
+                    utils::SECONDS_DURATION_BUCKETS,
+                )
+                .unwrap()
+                .install_recorder()
+                .unwrap(),
+        )
+    }
+}
+
+#[cfg(feature = "prometheus")]
 impl MakeDefaultHandle for Handle {
     type Out = PrometheusHandle;
 
-    fn make_default_handle() -> Self::Out {
-        PrometheusBuilder::new()
-            .set_buckets_for_metric(
-                Matcher::Full(
-                    PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
-                        .get()
-                        .map_or(AXUM_HTTP_REQUESTS_DURATION_SECONDS, |s| s.as_str())
-                        .to_string(),
-                ),
-                utils::SECONDS_DURATION_BUCKETS,
-            )
-            .unwrap()
-            .install_recorder()
-            .unwrap()
+    fn make_default_handle(self) -> Self::Out {
+        self.0
     }
 }
 
