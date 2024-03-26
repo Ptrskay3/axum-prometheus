@@ -542,11 +542,6 @@ where
         }
     }
 
-    // Enable tracking response body sizes.
-    pub fn enable_response_body_size(&mut self) {
-        self.inner_layer.on_body_chunk(Some(BodySizeRecorder));
-    }
-
     pub(crate) fn from_builder(builder: MetricLayerBuilder<'a, T, M, LayerOnly>) -> Self {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
@@ -561,6 +556,19 @@ where
         }
     }
 
+    // Enable tracking response body sizes.
+    pub fn enable_response_body_size(&mut self) {
+        self.inner_layer.on_body_chunk(Some(BodySizeRecorder));
+    }
+
+    pub fn pair_from_init(m: M) -> (Self, T) {
+        (Self::new(), M::make_default_handle(m))
+    }
+}
+impl<'a, T, M> GenericMetricLayer<'a, T, M>
+where
+    M: MakeDefaultHandle<Out = T> + Default,
+{
     pub(crate) fn pair_from_builder(builder: MetricLayerBuilder<'a, T, M, Paired>) -> (Self, T) {
         let make_classifier =
             StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
@@ -575,7 +583,9 @@ where
                 inner_layer,
                 _marker: PhantomData,
             },
-            builder.metric_handle.unwrap_or_else(M::make_default_handle),
+            builder
+                .metric_handle
+                .unwrap_or_else(|| M::make_default_handle(M::default())),
         )
     }
 
@@ -610,7 +620,7 @@ where
     /// }
     /// ```
     pub fn pair() -> (Self, T) {
-        (Self::new(), M::make_default_handle())
+        (Self::new(), M::make_default_handle(M::default()))
     }
 }
 
@@ -638,6 +648,7 @@ impl<'a, S, T, M> Layer<S> for GenericMetricLayer<'a, T, M> {
 
 /// The trait that allows to use a metrics exporter in `GenericMetricLayer`.
 pub trait MakeDefaultHandle {
+    // TODO: Update the documentation example
     /// The type of the metrics handle to return from [`MetricLayerBuilder`].
     type Out;
 
@@ -655,7 +666,7 @@ pub trait MakeDefaultHandle {
     /// impl MakeDefaultHandle for Handle {
     ///     type Out = PrometheusHandle;
     ///
-    ///     fn make_default_handle() -> Self::Out {
+    ///     fn make_default_handle(self) -> Self::Out {
     ///         PrometheusBuilder::new()
     ///             .set_buckets_for_metric(
     ///                 Matcher::Full(requests_duration_name().to_string()),
@@ -671,7 +682,7 @@ pub trait MakeDefaultHandle {
     /// ```rust,ignore
     /// let (layer, handle) =  GenericMetricLayer::<'_, _, Handle>::pair();
     /// ```
-    fn make_default_handle() -> Self::Out;
+    fn make_default_handle(self) -> Self::Out;
 }
 
 /// The default handle for the Prometheus exporter.
@@ -680,23 +691,32 @@ pub trait MakeDefaultHandle {
 pub struct Handle(pub PrometheusHandle);
 
 #[cfg(feature = "prometheus")]
+impl Default for Handle {
+    fn default() -> Self {
+        Self(
+            PrometheusBuilder::new()
+                .set_buckets_for_metric(
+                    Matcher::Full(
+                        PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
+                            .get()
+                            .map_or(AXUM_HTTP_REQUESTS_DURATION_SECONDS, |s| s.as_str())
+                            .to_string(),
+                    ),
+                    utils::SECONDS_DURATION_BUCKETS,
+                )
+                .unwrap()
+                .install_recorder()
+                .unwrap(),
+        )
+    }
+}
+
+#[cfg(feature = "prometheus")]
 impl MakeDefaultHandle for Handle {
     type Out = PrometheusHandle;
 
-    fn make_default_handle() -> Self::Out {
-        PrometheusBuilder::new()
-            .set_buckets_for_metric(
-                Matcher::Full(
-                    PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
-                        .get()
-                        .map_or(AXUM_HTTP_REQUESTS_DURATION_SECONDS, |s| s.as_str())
-                        .to_string(),
-                ),
-                utils::SECONDS_DURATION_BUCKETS,
-            )
-            .unwrap()
-            .install_recorder()
-            .unwrap()
+    fn make_default_handle(self) -> Self::Out {
+        self.0
     }
 }
 

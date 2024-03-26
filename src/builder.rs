@@ -66,7 +66,6 @@ pub struct MetricLayerBuilder<'a, T, M, S: MetricBuilderState> {
 impl<'a, T, M, S> MetricLayerBuilder<'a, T, M, S>
 where
     S: MetricBuilderState,
-    M: MakeDefaultHandle,
 {
     /// Skip reporting a specific route pattern.
     ///
@@ -165,10 +164,7 @@ where
     }
 }
 
-impl<'a, T, M> MetricLayerBuilder<'a, T, M, LayerOnly>
-where
-    M: MakeDefaultHandle<Out = T>,
-{
+impl<'a, T, M> MetricLayerBuilder<'a, T, M, LayerOnly> {
     /// Initialize the builder.
     pub fn new() -> MetricLayerBuilder<'a, T, M, LayerOnly> {
         MetricLayerBuilder {
@@ -201,7 +197,11 @@ where
         self.metric_prefix = Some(prefix.into().into_owned());
         self
     }
-
+}
+impl<'a, T, M> MetricLayerBuilder<'a, T, M, LayerOnly>
+where
+    M: MakeDefaultHandle<Out = T>,
+{
     /// Finalize the builder and get the previously registered metric handle out of it.
     pub fn build(self) -> GenericMetricLayer<'a, T, M> {
         GenericMetricLayer::from_builder(self)
@@ -210,7 +210,7 @@ where
 
 impl<'a, T, M> MetricLayerBuilder<'a, T, M, LayerOnly>
 where
-    M: MakeDefaultHandle<Out = T>,
+    M: MakeDefaultHandle<Out = T> + Default,
 {
     /// Attach the default exporter handle to the builder. This is similar to
     /// initializing with [`GenericMetricLayer::pair`].
@@ -222,10 +222,11 @@ where
     /// [`build_pair`]: crate::MetricLayerBuilder::build_pair
     pub fn with_default_metrics(self) -> MetricLayerBuilder<'a, T, M, Paired> {
         let mut builder = MetricLayerBuilder::<'_, _, _, Paired>::from_layer_only(self);
-        builder.metric_handle = Some(M::make_default_handle());
+        builder.metric_handle = Some(M::make_default_handle(M::default()));
         builder
     }
-
+}
+impl<'a, T, M> MetricLayerBuilder<'a, T, M, LayerOnly> {
     /// Attach a custom built exporter handle to the builder that's returned from the passed
     /// in closure.
     ///
@@ -264,10 +265,7 @@ where
     }
 }
 
-impl<'a, T, M> MetricLayerBuilder<'a, T, M, Paired>
-where
-    M: MakeDefaultHandle<Out = T>,
-{
+impl<'a, T, M> MetricLayerBuilder<'a, T, M, Paired> {
     pub(crate) fn from_layer_only(layer_only: MetricLayerBuilder<'a, T, M, LayerOnly>) -> Self {
         if let Some(prefix) = layer_only.metric_prefix.as_ref() {
             set_prefix(prefix);
@@ -288,7 +286,7 @@ where
 
 impl<'a, T, M> MetricLayerBuilder<'a, T, M, Paired>
 where
-    M: MakeDefaultHandle<Out = T>,
+    M: MakeDefaultHandle<Out = T> + Default,
 {
     /// Finalize the builder and get out the [`GenericMetricLayer`] and the
     /// exporter handle out of it as a tuple.
