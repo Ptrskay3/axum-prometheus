@@ -694,39 +694,36 @@ impl<'a, S, T, M> Layer<S> for GenericMetricLayer<'a, T, M> {
 
 /// The trait that allows to use a metrics exporter in `GenericMetricLayer`.
 pub trait MakeDefaultHandle {
-    // TODO: Update the documentation example
     /// The type of the metrics handle to return from [`MetricLayerBuilder`].
     type Out;
 
-    /// The function that defines how to initialize a metric exporter by default, if none were provided.
+    /// The function that defines how to initialize a metric exporter by default.
     ///
     /// # Example
     ///
     /// ```rust, no_run
-    /// use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle, Matcher};
-    /// use axum_prometheus::{utils::{SECONDS_DURATION_BUCKETS, requests_duration_name}, MakeDefaultHandle, GenericMetricLayer};
+    /// use axum_prometheus::{MakeDefaultHandle, GenericMetricLayer};
     ///
-    /// // A wrapper struct to work around Rust's orphan rules.
-    /// pub struct Handle(pub PrometheusHandle);
+    /// pub struct MyHandle(pub String);
     ///
     /// impl MakeDefaultHandle for Handle {
-    ///     type Out = PrometheusHandle;
+    ///     type Out = ();
     ///
     ///     fn make_default_handle(self) -> Self::Out {
-    ///         PrometheusBuilder::new()
-    ///             .set_buckets_for_metric(
-    ///                 Matcher::Full(requests_duration_name().to_string()),
-    ///                 SECONDS_DURATION_BUCKETS,
-    ///             )
-    ///             .unwrap()
-    ///             .install_recorder()
-    ///             .unwrap()
+    ///        // This is where you initialize and register everything you need.
+    ///        // Notice that self is passed in by value.
     ///     }
     /// }
     /// ```
     /// and then, to use it:
     /// ```rust,ignore
-    /// let (layer, handle) =  GenericMetricLayer::<'_, _, Handle>::pair();
+    /// // Initialize the struct, then use `pair_from`.
+    /// let my_handle = MyHandle(String::from("localhost"));
+    /// let (layer, handle) =  GenericMetricLayer::pair_from(my_handle);
+    ///
+    /// // Or optionally if your custom struct implements `Default` too, you may call `pair`.
+    /// // That's going to use `MyHandle::default()`.
+    /// let (layer, handle) =  GenericMetricLayer::<'_, _, MyHandle>::pair();
     /// ```
     fn make_default_handle(self) -> Self::Out;
 }
