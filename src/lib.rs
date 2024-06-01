@@ -706,7 +706,7 @@ pub trait MakeDefaultHandle {
     ///
     /// pub struct MyHandle(pub String);
     ///
-    /// impl MakeDefaultHandle for Handle {
+    /// impl MakeDefaultHandle for MyHandle {
     ///     type Out = ();
     ///
     ///     fn make_default_handle(self) -> Self::Out {
