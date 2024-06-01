@@ -738,9 +738,15 @@ pub struct Handle(pub PrometheusHandle);
 #[cfg(feature = "prometheus")]
 impl Default for Handle {
     fn default() -> Self {
+        // TODO: in push-gateway mode we need to tokio::spawn the exporter future.
+        // Also, we need a way to configure the push gateway exporter (PrometheusBuilder::with_push_gateway).
+
         let (recorder, _) = PrometheusBuilder::new()
             .upkeep_timeout(Duration::from_secs(5))
-            .idle_timeout(MetricKindMask::HISTOGRAM, Some(Duration::from_secs(300)))
+            .idle_timeout(
+                MetricKindMask::COUNTER | MetricKindMask::HISTOGRAM,
+                Some(Duration::from_secs(300)),
+            )
             .set_buckets_for_metric(
                 Matcher::Full(
                     PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
