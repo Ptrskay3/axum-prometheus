@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 
 # [Unreleased]
 
--
+### Changed
+
+- `MakeDefaultHandle::make_default_handle` now takes `self` as argument. This allows custom implementor structs to hold non-static data. [\#49]
+
+### Added
+
+- `GenericMetricLayer::pair_from` to initialize from a concrete struct. `GenericMetricLayer::pair` now requires that the handle type implements `Default`. [\#49]
 
 # [0.6.1] - 2024-01-23
 
