@@ -125,9 +125,9 @@
 //!
 //! fn main() {
 //!     // Use `GenericMetricLayer` instead of `PrometheusMetricLayer`.
-//!     // Generally `GenericMetricLayer::pair_from_init` is what you're looking for.
+//!     // Generally `GenericMetricLayer::pair_from` is what you're looking for.
 //!     // It lets you pass in a concrete initialized `Recorder`.
-//!     let (metric_layer, _handle) = GenericMetricLayer::pair_from_init(Recorder { port: 8125 });
+//!     let (metric_layer, _handle) = GenericMetricLayer::pair_from(Recorder { port: 8125 });
 //! }
 //! ```
 //!
@@ -599,12 +599,12 @@ where
     /// }
     ///
     /// fn main() {
-    ///     let (metric_layer, metric_handle) = GenericMetricLayer::pair_from_init(
+    ///     let (metric_layer, metric_handle) = GenericMetricLayer::pair_from(
     ///         Recorder { host: "0.0.0.0".to_string() }
     ///     );
     /// }
     /// ```
-    pub fn pair_from_init(m: M) -> (Self, T) {
+    pub fn pair_from(m: M) -> (Self, T) {
         (Self::new(), M::make_default_handle(m))
     }
 }

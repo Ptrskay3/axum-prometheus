@@ -47,9 +47,9 @@ async fn main() {
         .init();
 
     // Use `GenericMetricLayer` instead of `PrometheusMetricLayer`.
-    // By using `pair_from_init`, you can inject any values into the recorder.
+    // By using `pair_from`, you can inject any values into the recorder.
     // `GenericMetricLayer::pair` is only callable if the recorder struct implements Default.
-    let (metric_layer, _) = GenericMetricLayer::pair_from_init(Recorder {
+    let (metric_layer, _) = GenericMetricLayer::pair_from(Recorder {
         host: "127.0.0.1",
         port: 8125,
         queue_size: 5000,

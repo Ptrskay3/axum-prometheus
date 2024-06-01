@@ -158,9 +158,9 @@ impl MakeDefaultHandle for Recorder {
 
 fn main() {
     // Use `GenericMetricLayer` instead of `PrometheusMetricLayer`.
-    // Generally `GenericMetricLayer::pair_from_init` is what you're looking for.
+    // Generally `GenericMetricLayer::pair_from` is what you're looking for.
     // It lets you pass in a concrete initialized `Recorder`.
-    let (metric_layer, _handle) = GenericMetricLayer::pair_from_init(Recorder { port: 8125 });
+    let (metric_layer, _handle) = GenericMetricLayer::pair_from(Recorder { port: 8125 });
 }
 ```
 
