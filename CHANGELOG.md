@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 # [Unreleased]
 
+# [0.7.0] - 2024-07-20
+
 ### Changed
 
 - `MakeDefaultHandle::make_default_handle` now takes `self` as argument. This allows custom implementor structs to hold non-static data. [\#49]
@@ -116,7 +118,7 @@ All notable changes to this project will be documented in this file.
 
 First version.
 
-[unreleased]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.6.1..master
+[unreleased]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.7.0..master
 [0.2.0]: https://github.com/Ptrskay3/axum-prometheus/compare/9fb600d7d9ac2e6d38e6399119fc7ba7f25d5fe0...756dc67bf2baae2de406e012bdaa2334ce0fcdcb
 [0.3.0]: https://github.com/Ptrskay3/axum-prometheus/compare/axum-0.6...release/0.3
 [0.3.1]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.3...release/0.3.1
@@ -127,4 +129,5 @@ First version.
 [0.5.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.4.0...release/0.5.0
 [0.6.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.5.0...release/0.6.0
 [0.6.1]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.6.0...release/0.6.1
+[0.7.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.6.1...release/0.7.0
 [\#28]: https://github.com/Ptrskay3/axum-prometheus/pull/28
