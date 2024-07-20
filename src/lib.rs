@@ -472,10 +472,10 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
     }
 }
 
-/// The tower middleware layer for recording http metrics.
+/// The tower middleware layer for recording HTTP metrics.
 ///
-/// Unlike [`GenericMetricLayer`], this struct __does not__ know about the metrics exporter, not the recorder. It will only emit
-/// metrics via the `metrics` crate's macros. It's completely on the user to set the global metrics recorder and exporter before using this.
+/// Unlike [`GenericMetricLayer`], this struct __does not__ know about the metrics exporter, or the recorder. It will only emit
+/// metrics via the `metrics` crate's macros. It's entirely up to the user to set the global metrics recorder/exporter before using this.
 ///
 /// You may use this if `GenericMetricLayer`'s requirements are too strict for your use case.
 #[derive(Clone)]
