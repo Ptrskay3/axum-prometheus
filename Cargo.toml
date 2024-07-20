@@ -11,7 +11,6 @@ repository = "https://github.com/Ptrskay3/axum-prometheus"
 
 [dependencies]
 axum = "0.7.1"
-futures = "0.3.23"
 http = "1.0.0"
 http-body = "1.0.0"
 metrics = "0.23.0"
