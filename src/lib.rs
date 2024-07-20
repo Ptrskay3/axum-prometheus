@@ -88,6 +88,11 @@
 //! axum_http_requests_duration_seconds_count{method="GET",status="200",endpoint="/metrics"} 4
 //! ```
 //!
+//! ## Prometheus push gateway feature
+//! This crate currently has no higher level API for the `push-gateway` feature. If you plan to use it, enable the
+//! `push-gateway` feature in `axum-prometheus`, use `BaseMetricLayer`, and setup your recorder manually, similar to
+//! the `base-metric-layer-example`.
+//!
 //! ## Using a different exporter than Prometheus
 //!
 //! This crate may be used with other exporters than Prometheus. First, disable the default features:
