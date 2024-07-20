@@ -90,9 +90,9 @@
 //!
 //! ## Prometheus push gateway feature
 //! This crate currently has no higher level API for the `push-gateway` feature. If you plan to use it, enable the
-//! `push-gateway` feature in `axum-prometheus`, use `BaseMetricLayer`, and setup your recorder manually, similar to 
+//! `push-gateway` feature in `axum-prometheus`, use `BaseMetricLayer`, and setup your recorder manually, similar to
 //! the `base-metric-layer-example`.
-//! 
+//!
 //! ## Using a different exporter than Prometheus
 //!
 //! This crate may be used with other exporters than Prometheus. First, disable the default features:
