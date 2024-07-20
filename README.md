@@ -125,6 +125,10 @@ Let's note that since `metrics-exporter-prometheus = "0.13"` that crate [introdu
 requires openssl support. The `axum_prometheus` crate __does not__ rely on, nor enable this feature by default — if you need it, 
 you may enable it through the `"push-gateway"` feature in `axum_prometheus`.
 
+## Prometheus push gateway feature
+
+This crate currently has no higher level API for the `push-gateway` feature. If you plan to use it, enable the `push-gateway` feature in `axum-prometheus`, use `BaseMetricLayer`, and setup your recorder manually, similar to the [`base-metric-layer-example`](./examples/base-metric-layer-example/src/main.rs).
+
 ## Using a different exporter than Prometheus
 
 This crate may be used with other exporters than Prometheus. First, disable the default features:
