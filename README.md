@@ -55,6 +55,10 @@ AXUM_HTTP_RESPONSE_BODY_SIZE = "my_app_response_body_size"
 | `0.6`        | `0.2`, `0.3`, `0.4`  |
 | `0.7`        | `0.5`, `0.6`         |
 
+#### MSRV
+
+This crate's current MSRV is 1.70.
+
 ## Usage
 
 For more elaborate use-cases, see the [`builder example`](examples/builder-example/).
