@@ -472,6 +472,97 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
     }
 }
 
+/// The tower middleware layer for recording HTTP metrics.
+///
+/// Unlike [`GenericMetricLayer`], this struct __does not__ know about the metrics exporter, or the recorder. It will only emit
+/// metrics via the `metrics` crate's macros. It's entirely up to the user to set the global metrics recorder/exporter before using this.
+///
+/// You may use this if `GenericMetricLayer`'s requirements are too strict for your use case.
+#[derive(Clone)]
+pub struct BaseMetricLayer<'a> {
+    pub(crate) inner_layer: LifeCycleLayer<
+        SharedClassifier<StatusInRangeAsFailures>,
+        Traffic<'a>,
+        Option<BodySizeRecorder>,
+    >,
+}
+
+impl<'a> BaseMetricLayer<'a> {
+    /// Construct a new `BaseMetricLayer`.
+    ///
+    /// # Example
+    /// ```
+    /// use axum::{routing::get, Router};
+    /// use axum_prometheus::{AXUM_HTTP_REQUESTS_DURATION_SECONDS, utils::SECONDS_DURATION_BUCKETS, BaseMetricLayer};
+    /// use metrics_exporter_prometheus::{Matcher, PrometheusBuilder};
+    /// use std::net::SocketAddr;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///    // Initialize the recorder as you like.
+    ///     let metric_handle = PrometheusBuilder::new()
+    ///        .set_buckets_for_metric(
+    ///            Matcher::Full(AXUM_HTTP_REQUESTS_DURATION_SECONDS.to_string()),
+    ///            SECONDS_DURATION_BUCKETS,
+    ///        )
+    ///        .unwrap()
+    ///        .install_recorder()
+    ///        .unwrap();
+    ///
+    ///     let app = Router::<()>::new()
+    ///       .route("/fast", get(|| async {}))
+    ///       .route(
+    ///           "/slow",
+    ///           get(|| async {
+    ///               tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    ///           }),
+    ///       )
+    ///       // Expose the metrics somehow to the outer world.
+    ///       .route("/metrics", get(|| async move { metric_handle.render() }))
+    ///       // Only need to add this layer at the end.
+    ///       .layer(BaseMetricLayer::new());
+    ///
+    ///    // Run the server as usual:
+    ///    // let listener = tokio::net::TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 3000)))
+    ///    //     .await
+    ///    //     .unwrap();
+    ///    // axum::serve(listener, app).await.unwrap()
+    /// }
+    /// ```
+    pub fn new() -> Self {
+        let make_classifier =
+            StatusInRangeAsFailures::new_for_client_and_server_errors().into_make_classifier();
+        let inner_layer = LifeCycleLayer::new(make_classifier, Traffic::new(), None);
+        Self { inner_layer }
+    }
+
+    /// Construct a new `BaseMetricLayer` with response body size tracking enabled.
+    pub fn with_response_body_size() -> Self {
+        let mut this = Self::new();
+        this.inner_layer.on_body_chunk(Some(BodySizeRecorder));
+        this
+    }
+}
+
+impl<'a> Default for BaseMetricLayer<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<'a, S> Layer<S> for BaseMetricLayer<'a> {
+    type Service = LifeCycle<
+        S,
+        SharedClassifier<StatusInRangeAsFailures>,
+        Traffic<'a>,
+        Option<BodySizeRecorder>,
+    >;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        self.inner_layer.layer(inner)
+    }
+}
+
 /// The tower middleware layer for recording http metrics with different exporters.
 pub struct GenericMetricLayer<'a, T, M> {
     pub(crate) inner_layer: LifeCycleLayer<

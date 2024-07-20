@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - `GenericMetricLayer::pair_from` to initialize from a concrete struct. `GenericMetricLayer::pair` now requires that the handle type implements `Default`. [\#49]
+- `BaseMetricLayer` that serves a more lightweight alternative to `GenericMetricLayer`. [\#56]
 
 # [0.6.1] - 2024-01-23
 
