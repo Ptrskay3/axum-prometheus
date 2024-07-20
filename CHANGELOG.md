@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - `MakeDefaultHandle::make_default_handle` now takes `self` as argument. This allows custom implementor structs to hold non-static data. [\#49]
+- Change the default initialization of `PrometheusHandle` to prevent unbounded memory growth of histograms. [\#52]
+- Bump `metrics` to `0.23`, `metrics-exporter-prometheus` to `0.15`. [\#52]
+- Document MSRV as 1.70 currently. [\#52]
 
 ### Added
 

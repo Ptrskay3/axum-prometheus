@@ -201,6 +201,7 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::time::Duration;
 use std::time::Instant;
 
 mod builder;
@@ -736,21 +737,24 @@ pub struct Handle(pub PrometheusHandle);
 #[cfg(feature = "prometheus")]
 impl Default for Handle {
     fn default() -> Self {
-        Self(
-            PrometheusBuilder::new()
-                .set_buckets_for_metric(
-                    Matcher::Full(
-                        PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
-                            .get()
-                            .map_or(AXUM_HTTP_REQUESTS_DURATION_SECONDS, |s| s.as_str())
-                            .to_string(),
-                    ),
-                    utils::SECONDS_DURATION_BUCKETS,
-                )
-                .unwrap()
-                .install_recorder()
-                .unwrap(),
-        )
+        // TODO: Handle the push gateway feature somehow.
+        let (recorder, _) = PrometheusBuilder::new()
+            .upkeep_timeout(Duration::from_secs(5))
+            .set_buckets_for_metric(
+                Matcher::Full(
+                    PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
+                        .get()
+                        .map_or(AXUM_HTTP_REQUESTS_DURATION_SECONDS, |s| s.as_str())
+                        .to_string(),
+                ),
+                utils::SECONDS_DURATION_BUCKETS,
+            )
+            .unwrap()
+            .build()
+            .expect("Failed to build metrics recorder");
+        let handle = recorder.handle();
+        metrics::set_global_recorder(recorder).expect("Failed to set global recorder");
+        Self(handle)
     }
 }
 
