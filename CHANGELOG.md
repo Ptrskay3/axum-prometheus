@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 # [Unreleased]
 
+- Compatibility with `axum = "0.8"`. This also updates `matchit` to `0.8`, changing how group pattern are described:
+  for example, `with_group_patterns_as("/foo", &["/foo/:bar"])` needs to be changed to `with_group_patterns_as("/foo", &["/foo/{bar}"])`.
+  The metrics values are also impacted: for example, the value `"/foo/:bar"` is now `"/foo/{bar}"`. [\#69]
+
 # [0.7.0] - 2024-07-20
 
 ### Changed
