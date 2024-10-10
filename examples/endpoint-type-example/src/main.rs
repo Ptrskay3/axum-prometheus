@@ -28,18 +28,18 @@ async fn main() {
 
     let app = Router::new()
         .route(
-            "/foo/:bar",
+            "/foo/{bar}",
             get(|| async {
-                tracing::debug!("calling /foo/:bar");
+                tracing::debug!("calling /foo/{{bar}}");
             }),
         )
         .nest(
             "/baz",
             Router::new().route(
-                "/qux/:a",
+                "/qux/{a}",
                 get(|| async {
                     // Calling `/baz/qux/2`, this'll show up as `endpoint="/baz/qux/2_changed` because of the fallback function.
-                    tracing::debug!("calling /baz/qux/:a");
+                    tracing::debug!("calling /baz/qux/{{a}}");
                 }),
             ),
         )

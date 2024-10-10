@@ -28,7 +28,7 @@ async fn main() {
         // ignore reporting requests that match "/metrics"
         .with_ignore_pattern("/metrics")
         // if the any of the second argument matches, report them at the `/foo` endpoint
-        .with_group_patterns_as("/foo", &["/foo/:bar", "/foo/:bar/:baz"])
+        .with_group_patterns_as("/foo", &["/foo/{bar}", "/foo/{bar}/{baz}"])
         // build a custom PrometheusHandle
         .with_metrics_from_fn(|| {
             PrometheusBuilder::new()
@@ -44,15 +44,15 @@ async fn main() {
 
     let app = Router::new()
         .route(
-            "/foo/:bar",
+            "/foo/{bar}",
             get(|| async {
-                tracing::debug!("calling /foo/:bar");
+                tracing::debug!("calling /foo/{{bar}}");
             }),
         )
         .route(
-            "/foo/:bar/:baz",
+            "/foo/{bar}/{baz}",
             get(|| async {
-                tracing::debug!("calling /foo/:bar/:baz");
+                tracing::debug!("calling /foo/{{bar}}/{{baz}}");
             }),
         )
         .route(
