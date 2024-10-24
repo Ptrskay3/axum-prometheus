@@ -13,8 +13,10 @@ repository = "https://github.com/Ptrskay3/axum-prometheus"
 axum = "0.8.0-alpha.1"
 http = "1.0.0"
 http-body = "1.0.0"
-metrics = "0.23.0"
-metrics-exporter-prometheus = { version =  "0.15.0", optional =  true, default-features = false, features = ["http-listener"] }
+metrics = "0.24.0"
+metrics-exporter-prometheus = { version = "0.16.0", optional = true, default-features = false, features = [
+    "http-listener",
+] }
 pin-project = "1.0.12"
 tower = "0.5.1"
 tokio = { version = "1.20.1", features = ["rt-multi-thread", "macros"] }
