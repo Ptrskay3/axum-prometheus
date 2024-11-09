@@ -12,7 +12,7 @@
 //! This crate also allows to track response body sizes as a histogram — see [`PrometheusMetricLayerBuilder::enable_response_body_size`].
 //!
 //! ### Renaming Metrics
-//!  
+//!
 //! These metrics can be renamed by specifying environmental variables at compile time:
 //! - `AXUM_HTTP_REQUESTS_TOTAL`
 //! - `AXUM_HTTP_REQUESTS_DURATION_SECONDS`
@@ -221,7 +221,7 @@ use builder::{LayerOnly, Paired};
 use lifecycle::layer::LifeCycleLayer;
 use lifecycle::OnBodyChunk;
 use lifecycle::{service::LifeCycle, Callbacks};
-use metrics::{counter, gauge, histogram};
+use metrics::{counter, gauge, histogram, Gauge};
 use once_cell::sync::OnceCell;
 use tower::Layer;
 use tower_http::classify::{ClassifiedResponse, SharedClassifier, StatusInRangeAsFailures};
@@ -328,6 +328,18 @@ pub struct MetricsData {
     pub(crate) exact_body_size_called: Arc<AtomicBool>,
 }
 
+#[doc(hidden)]
+pub struct Pending(Gauge);
+
+impl Drop for Pending {
+    fn drop(&mut self) {
+        self.0.decrement(1);
+    }
+}
+
+// The `Pending` struct is behind an Arc to make sure we only drop it once (since we're cloning this across the lifecycle).
+type DefaultCallbackData = Option<(MetricsData, Arc<Pending>)>;
+
 /// A marker struct that implements [`lifecycle::OnBodyChunk`], so it can be used to track response body sizes.
 #[derive(Clone)]
 pub struct BodySizeRecorder;
@@ -336,11 +348,13 @@ impl<B> OnBodyChunk<B> for BodySizeRecorder
 where
     B: bytes::Buf,
 {
-    type Data = Option<MetricsData>;
+    type Data = DefaultCallbackData;
 
     #[inline]
     fn call(&mut self, body: &B, body_size: Option<u64>, data: &mut Self::Data) {
-        let Some(metrics_data) = data else { return };
+        let Some((metrics_data, _pending_guard)) = data else {
+            return;
+        };
         // If the exact body size is known ahead of time, we'll just call this whole thing once.
         if let Some(exact_size) = body_size {
             if !metrics_data
@@ -385,7 +399,7 @@ fn body_size_histogram(metrics_data: &MetricsData) {
 }
 
 impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
-    type Data = Option<MetricsData>;
+    type Data = DefaultCallbackData;
 
     fn prepare<B>(&mut self, request: &http::Request<B>) -> Self::Data {
         let now = std::time::Instant::now();
@@ -416,25 +430,25 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
         let endpoint = self.apply_group_pattern(&endpoint).to_owned();
         let method = utils::as_label(request.method());
 
-        let requests_pending = PREFIXED_HTTP_REQUESTS_PENDING
-            .get()
-            .map_or(AXUM_HTTP_REQUESTS_PENDING, |s| s.as_str());
-        gauge!(
-            requests_pending,
+        let pending = gauge!(
+            utils::requests_pending_name(),
             &[
                 ("method", method.to_owned()),
                 ("endpoint", endpoint.clone()),
             ]
-        )
-        .increment(1.0);
+        );
+        pending.increment(1);
 
-        Some(MetricsData {
-            endpoint,
-            start: now,
-            method,
-            body_size: 0.0,
-            exact_body_size_called: Arc::new(AtomicBool::new(false)),
-        })
+        Some((
+            MetricsData {
+                endpoint,
+                start: now,
+                method,
+                body_size: 0.0,
+                exact_body_size_called: Arc::new(AtomicBool::new(false)),
+            },
+            Arc::new(Pending(pending)),
+        ))
     }
 
     fn on_response<B>(
@@ -443,20 +457,8 @@ impl<'a, FailureClass> Callbacks<FailureClass> for Traffic<'a> {
         _cls: ClassifiedResponse<FailureClass, ()>,
         data: &mut Self::Data,
     ) {
-        if let Some(data) = data {
+        if let Some((data, _pending_guard)) = data {
             let duration_seconds = data.start.elapsed().as_secs_f64();
-
-            let requests_pending = PREFIXED_HTTP_REQUESTS_PENDING
-                .get()
-                .map_or(AXUM_HTTP_REQUESTS_PENDING, |s| s.as_str());
-            gauge!(
-                requests_pending,
-                &[
-                    ("method", data.method.to_string()),
-                    ("endpoint", data.endpoint.to_string()),
-                ]
-            )
-            .decrement(1.0);
 
             let labels = [
                 ("method", data.method.to_string()),
