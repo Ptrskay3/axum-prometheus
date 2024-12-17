@@ -707,6 +707,7 @@ where
         (Self::new(), M::make_default_handle(m))
     }
 }
+
 impl<'a, T, M> GenericMetricLayer<'a, T, M>
 where
     M: MakeDefaultHandle<Out = T> + Default,
@@ -835,9 +836,7 @@ pub struct Handle(pub PrometheusHandle);
 #[cfg(feature = "prometheus")]
 impl Default for Handle {
     fn default() -> Self {
-        // TODO: Handle the push gateway feature somehow.
-        let (recorder, _) = PrometheusBuilder::new()
-            .upkeep_timeout(Duration::from_secs(5))
+        let recorder = PrometheusBuilder::new()
             .set_buckets_for_metric(
                 Matcher::Full(
                     PREFIXED_HTTP_REQUESTS_DURATION_SECONDS
@@ -848,9 +847,15 @@ impl Default for Handle {
                 utils::SECONDS_DURATION_BUCKETS,
             )
             .unwrap()
-            .build()
-            .expect("Failed to build metrics recorder");
+            .build_recorder();
         let handle = recorder.handle();
+        let recorder_handle = handle.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                recorder_handle.run_upkeep();
+            }
+        });
         metrics::set_global_recorder(recorder).expect("Failed to set global recorder");
         Self(handle)
     }
