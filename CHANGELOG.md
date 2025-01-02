@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Remove the `once_cell` dependency since we are on MSRV 1.70. [\#30]
 - Compatibility with `axum = "0.8"`. This also updates `matchit` to `0.8`, changing how group pattern are described:
   for example, `with_group_patterns_as("/foo", &["/foo/:bar"])` needs to be changed to `with_group_patterns_as("/foo", &["/foo/{bar}"])`.
   The metrics values are also impacted: for example, the value `"/foo/:bar"` is now `"/foo/{bar}"`. [\#69]
