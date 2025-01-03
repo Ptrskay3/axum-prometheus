@@ -193,19 +193,19 @@ pub const AXUM_HTTP_RESPONSE_BODY_SIZE: &str = match option_env!("AXUM_HTTP_RESP
 };
 
 #[doc(hidden)]
-pub static PREFIXED_HTTP_REQUESTS_TOTAL: OnceCell<String> = OnceCell::new();
+pub static PREFIXED_HTTP_REQUESTS_TOTAL: OnceLock<String> = OnceLock::new();
 #[doc(hidden)]
-pub static PREFIXED_HTTP_REQUESTS_DURATION_SECONDS: OnceCell<String> = OnceCell::new();
+pub static PREFIXED_HTTP_REQUESTS_DURATION_SECONDS: OnceLock<String> = OnceLock::new();
 #[doc(hidden)]
-pub static PREFIXED_HTTP_REQUESTS_PENDING: OnceCell<String> = OnceCell::new();
+pub static PREFIXED_HTTP_REQUESTS_PENDING: OnceLock<String> = OnceLock::new();
 #[doc(hidden)]
-pub static PREFIXED_HTTP_RESPONSE_BODY_SIZE: OnceCell<String> = OnceCell::new();
+pub static PREFIXED_HTTP_RESPONSE_BODY_SIZE: OnceLock<String> = OnceLock::new();
 
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use std::time::Instant;
 
@@ -222,7 +222,6 @@ use lifecycle::layer::LifeCycleLayer;
 use lifecycle::OnBodyChunk;
 use lifecycle::{service::LifeCycle, Callbacks};
 use metrics::{counter, gauge, histogram, Gauge};
-use once_cell::sync::OnceCell;
 use tower::Layer;
 use tower_http::classify::{ClassifiedResponse, SharedClassifier, StatusInRangeAsFailures};
 
