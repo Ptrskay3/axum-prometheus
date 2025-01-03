@@ -5,6 +5,7 @@ edition = "2021"
 homepage = "https://github.com/Ptrskay3/axum-prometheus"
 license = "MIT"
 description = "A tower middleware to collect and export HTTP metrics for Axum"
+rust-version = "1.75"
 keywords = ["axum", "prometheus", "metrics"]
 categories = ["asynchronous", "network-programming", "web-programming", "development-tools::profiling"]
 repository = "https://github.com/Ptrskay3/axum-prometheus"

@@ -57,7 +57,7 @@ AXUM_HTTP_RESPONSE_BODY_SIZE = "my_app_response_body_size"
 
 #### MSRV
 
-This crate's current MSRV is 1.70.
+This crate's current MSRV is 1.75.
 
 ## Usage
 

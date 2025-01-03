@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- Remove the `once_cell` dependency since we are on MSRV 1.70. [\#30]
+- Remove the `once_cell` dependency since we are on MSRV 1.75. [\#30]
 - Compatibility with `axum = "0.8"`. This also updates `matchit` to `0.8`, changing how group pattern are described:
   for example, `with_group_patterns_as("/foo", &["/foo/:bar"])` needs to be changed to `with_group_patterns_as("/foo", &["/foo/{bar}"])`.
   The metrics values are also impacted: for example, the value `"/foo/:bar"` is now `"/foo/{bar}"`. [\#69]
@@ -32,7 +32,7 @@ All notable changes to this project will be documented in this file.
 
 # [0.6.1] - 2024-01-23
 
-- Disabled the `"push-gateway"` feature in `metrics-exporter-prometheus` by default, and added a way to enable it via 
+- Disabled the `"push-gateway"` feature in `metrics-exporter-prometheus` by default, and added a way to enable it via
   the same name under `axum_prometheus`. This change ensures that this crate can still be built without openssl support, see [here](https://github.com/Ptrskay3/axum-prometheus/issues/42). [\#44]
 - Update examples to `metrics-exporter-prometheus` to `0.13` and `metrics` to `0.22`. [\#43]
 
