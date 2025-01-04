@@ -2,7 +2,7 @@ use super::{Callbacks, FailedAt, OnBodyChunk};
 use futures_core::ready;
 use http::HeaderValue;
 use http_body::{Body, Frame};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use std::{
     fmt,
     pin::Pin,
@@ -10,8 +10,8 @@ use std::{
 };
 use tower_http::classify::ClassifyEos;
 
+pin_project! {
 /// Response body for [`LifeCycle`].
-#[pin_project]
 pub struct ResponseBody<B, C, Callbacks, OnBodyChunk, CallbacksData> {
     #[pin]
     pub(super) inner: B,
@@ -19,6 +19,7 @@ pub struct ResponseBody<B, C, Callbacks, OnBodyChunk, CallbacksData> {
     pub(super) callbacks_data: CallbacksData,
     pub(super) on_body_chunk: OnBodyChunk,
     pub(super) content_length: Option<HeaderValue>,
+}
 }
 
 impl<B, C, CallbacksT, OnBodyChunkT, CallbacksData> Body

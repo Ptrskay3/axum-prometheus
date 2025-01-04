@@ -1,7 +1,7 @@
 use futures_core::ready;
 use http::response::Response;
 use http_body::Body;
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use std::{
     future::Future,
     pin::Pin,
@@ -11,7 +11,7 @@ use tower_http::classify::{ClassifiedResponse, ClassifyResponse};
 
 use super::{body::ResponseBody, Callbacks, FailedAt, OnBodyChunk};
 
-#[pin_project]
+pin_project! {
 pub struct ResponseFuture<F, C, Callbacks, OnBodyChunk, CallbackData> {
     #[pin]
     pub(super) inner: F,
@@ -19,7 +19,7 @@ pub struct ResponseFuture<F, C, Callbacks, OnBodyChunk, CallbackData> {
     pub(super) callbacks: Option<Callbacks>,
     pub(super) on_body_chunk: Option<OnBodyChunk>,
     pub(super) callbacks_data: Option<CallbackData>,
-}
+}}
 
 impl<F, C, CallbacksData, ResBody, E, CallbacksT, OnBodyChunkT> Future
     for ResponseFuture<F, C, CallbacksT, OnBodyChunkT, CallbacksData>
