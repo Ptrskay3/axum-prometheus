@@ -4,17 +4,22 @@ All notable changes to this project will be documented in this file.
 
 # [Unreleased]
 
+# [0.8.0]
+
 ### Changed
 
-- Remove the `once_cell` dependency since we are on MSRV 1.75. [\#30]
-- Compatibility with `axum = "0.8"`. This also updates `matchit` to `0.8`, changing how group pattern are described:
+- Compatibility with `axum = "0.8"`. This also updates `matchit` to `0.8`, changing how group patterns are described:
   for example, `with_group_patterns_as("/foo", &["/foo/:bar"])` needs to be changed to `with_group_patterns_as("/foo", &["/foo/{bar}"])`.
-  The metrics values are also impacted: for example, the value `"/foo/:bar"` is now `"/foo/{bar}"`. [\#69]
+  The metrics values are also impacted: for example, the value `"/foo/:bar"` is now `"/foo/{bar}"`.
+  This change bumps MSRV to 1.75. [\#69]
 - Disable the default features in `metrics-exporter-prometheus` to skip the binding of port 9000, and the upkeep task is manually spawned. [\#75]
+- Add a new feature `http-listener` to enable that exact feature in `metrics-exporter-prometheus`. [\#79]
+- Replace the `once_cell` dependency with `std::sync::OnceLock` [\#78]
 
 ### Fixed
 
 - Fixed the long-standing pending requests metric leak. [\#74]
+- Removed the sideeffect of binding port 9000. [\#75]
 
 # [0.7.0] - 2024-07-20
 
@@ -130,7 +135,7 @@ All notable changes to this project will be documented in this file.
 
 First version.
 
-[unreleased]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.7.0..master
+[unreleased]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.8.0..master
 [0.2.0]: https://github.com/Ptrskay3/axum-prometheus/compare/9fb600d7d9ac2e6d38e6399119fc7ba7f25d5fe0...756dc67bf2baae2de406e012bdaa2334ce0fcdcb
 [0.3.0]: https://github.com/Ptrskay3/axum-prometheus/compare/axum-0.6...release/0.3
 [0.3.1]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.3...release/0.3.1
@@ -142,4 +147,5 @@ First version.
 [0.6.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.5.0...release/0.6.0
 [0.6.1]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.6.0...release/0.6.1
 [0.7.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.6.1...release/0.7.0
+[0.8.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.7.0...release/0.8.0
 [\#28]: https://github.com/Ptrskay3/axum-prometheus/pull/28
