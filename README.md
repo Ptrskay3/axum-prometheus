@@ -18,7 +18,7 @@ A middleware to collect HTTP metrics for Axum applications.
 
 ## Metrics
 
-By default three HTTP metrics are tracked
+By default, three HTTP metrics are tracked
 
 - `axum_http_requests_total` (labels: endpoint, method, status): the total number of HTTP requests handled (counter)
 - `axum_http_requests_duration_seconds` (labels: endpoint, method, status): the request duration for all HTTP requests handled (histogram)
@@ -49,15 +49,15 @@ AXUM_HTTP_RESPONSE_BODY_SIZE = "my_app_response_body_size"
 
 ### Compatibility
 
-| Axum Version | Crate Version |
-| ------------ | ------------- |
-| `0.5`        | `0.1`         |
-| `0.6`        | `0.2`, `0.3`, `0.4`  |
-| `0.7`        | `0.5`, `0.6`, `0.7`         |
+| Axum Version | Crate Version       |
+|--------------|---------------------|
+| `0.5`        | `0.1`               |
+| `0.6`        | `0.2`, `0.3`, `0.4` |
+| `0.7`        | `0.5`, `0.6`, `0.7` |
 
 #### MSRV
 
-This crate's current MSRV is 1.70.
+This crate's current MSRV is 1.75.
 
 ## Usage
 
@@ -122,7 +122,7 @@ axum_http_requests_duration_seconds_count{method="GET",status="200",endpoint="/m
 ```
 
 Let's note that since `metrics-exporter-prometheus = "0.13"` that crate [introduced](https://github.com/metrics-rs/metrics/commit/d817f5c6f4909eeafbd9ff9ceadbf29302169bfa) the `push-gateway` default feature, that
-requires openssl support. The `axum_prometheus` crate __does not__ rely on, nor enable this feature by default — if you need it, 
+requires openssl support. The `axum_prometheus` crate __does not__ rely on, nor enable this feature by default — if you need it,
 you may enable it through the `"push-gateway"` feature in `axum_prometheus`.
 
 ## Prometheus push gateway feature
@@ -181,7 +181,7 @@ use axum_prometheus::{MakeDefaultHandle, GenericMetricLayer};
 struct Recorder { port: u16 }
 
 impl MakeDefaultHandle for Recorder {
-   /* .. same as before .. */
+    /* .. same as before .. */
 }
 
 fn main() {
