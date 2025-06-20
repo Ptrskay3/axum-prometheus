@@ -261,9 +261,23 @@ fn set_prefix(prefix: impl AsRef<str>) {
 /// A marker struct that implements the [`lifecycle::Callbacks`] trait.
 #[derive(Clone, Default)]
 pub struct Traffic<'a> {
+    filter_mode: FilterMode,
     ignore_patterns: matchit::Router<()>,
+    allow_patterns: matchit::Router<()>,
     group_patterns: HashMap<&'a str, matchit::Router<()>>,
     endpoint_label: EndpointLabel,
+}
+
+#[derive(Clone)]
+enum FilterMode {
+    Ignore,
+    AllowOnly,
+}
+
+impl Default for FilterMode {
+    fn default() -> Self {
+        FilterMode::Ignore
+    }
 }
 
 impl<'a> Traffic<'a> {
@@ -272,14 +286,36 @@ impl<'a> Traffic<'a> {
     }
 
     pub(crate) fn with_ignore_pattern(&mut self, ignore_pattern: &'a str) {
+        if !matches!(self.filter_mode, FilterMode::Ignore) {
+            self.filter_mode = FilterMode::Ignore;
+            self.allow_patterns = matchit::Router::new();
+            self.ignore_patterns = matchit::Router::new();
+        }
         self.ignore_patterns
             .insert(ignore_pattern, ())
+            .expect("good route specs");
+    }
+
+    pub(crate) fn with_allow_pattern(&mut self, allow_pattern: &'a str) {
+        if !matches!(self.filter_mode, FilterMode::AllowOnly) {
+            self.filter_mode = FilterMode::AllowOnly;
+            self.ignore_patterns = matchit::Router::new();
+            self.allow_patterns = matchit::Router::new();
+        }
+        self.allow_patterns
+            .insert(allow_pattern, ())
             .expect("good route specs");
     }
 
     pub(crate) fn with_ignore_patterns(&mut self, ignore_patterns: &'a [&'a str]) {
         for pattern in ignore_patterns {
             self.with_ignore_pattern(pattern);
+        }
+    }
+
+    pub(crate) fn with_allow_patterns(&mut self, allow_patterns: &'a [&'a str]) {
+        for pattern in allow_patterns {
+            self.with_allow_pattern(pattern);
         }
     }
 
@@ -301,7 +337,10 @@ impl<'a> Traffic<'a> {
     }
 
     pub(crate) fn ignores(&self, path: &str) -> bool {
-        self.ignore_patterns.at(path).is_ok()
+        match self.filter_mode {
+            FilterMode::Ignore => self.ignore_patterns.at(path).is_ok(),
+            FilterMode::AllowOnly => !self.allow_patterns.at(path).is_ok()
+        }
     }
 
     pub(crate) fn apply_group_pattern(&self, path: &'a str) -> &'a str {
