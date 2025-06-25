@@ -21,7 +21,7 @@ async fn main() {
 
     let (prometheus_layer, metric_handle) = PrometheusMetricLayerBuilder::new()
         .with_endpoint_label_type(EndpointLabel::MatchedPathWithFallbackFn(|path| {
-            format!("{}_changed", path)
+            format!("{path}_changed")
         }))
         .with_default_metrics()
         .build_pair();

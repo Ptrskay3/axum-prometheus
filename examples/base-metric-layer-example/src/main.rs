@@ -21,6 +21,7 @@ async fn main() {
             Duration::from_secs(10),
             None,
             None,
+            true,
         )
         .expect("push gateway endpoint should be valid")
         .install()
