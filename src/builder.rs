@@ -82,7 +82,9 @@ where
     ///
     /// Supports the same features as `axum`'s Router.
     ///
-    ///  _Note that ignore patterns always checked before any other group pattern rule is applied
+    /// _Note: `with_ignore_pattern` and `with_allow_pattern` are mutually exclusive. If you call both, the last one called takes precedence and resets the previous patterns._
+    ///
+    /// _Note that ignore patterns are always checked before any other group pattern rule is applied
     /// and it short-circuits if a certain route is ignored._
     pub fn with_ignore_pattern(mut self, ignore_pattern: &'a str) -> Self {
         self.traffic.with_ignore_pattern(ignore_pattern);
@@ -103,12 +105,56 @@ where
     ///
     /// Supports the same features as `axum`'s Router.
     ///
-    ///  _Note that ignore patterns always checked before any other group pattern rule is applied
+    /// _Note: `with_ignore_patterns` and `with_allow_patterns` are mutually exclusive. If you call both, the last one called takes precedence and resets the previous patterns._
+    ///
+    /// _Note that ignore patterns are always checked before any other group pattern rule is applied
     /// and it short-circuits if a certain route is ignored._
     ///
     /// [`with_ignore_pattern`]: crate::MetricLayerBuilder::with_ignore_pattern
     pub fn with_ignore_patterns(mut self, ignore_patterns: &'a [&'a str]) -> Self {
         self.traffic.with_ignore_patterns(ignore_patterns);
+        self
+    }
+
+    /// Only report requests matching a specific route pattern.
+    ///
+    /// In the following example
+    /// ```rust
+    /// use axum_prometheus::PrometheusMetricLayerBuilder;
+    ///
+    /// let metric_layer = PrometheusMetricLayerBuilder::new()
+    ///     .with_allow_pattern("/api/*path")
+    ///     .build();
+    /// ```
+    /// only requests whose URI path matches "/api/*path" will be reported.
+    ///
+    /// Supports the same features as `axum`'s Router.
+    ///
+    /// _Note: `with_allow_pattern` and `with_ignore_pattern` are mutually exclusive. If you call both, the last one called takes precedence and resets the previous patterns._
+    pub fn with_allow_pattern(mut self, allow_pattern: &'a str) -> Self {
+        self.traffic.with_allow_pattern(allow_pattern);
+        self
+    }
+
+    /// Only report requests matching a collection of route patterns.
+    ///
+    /// Equivalent with calling [`with_allow_pattern`] repeatedly.
+    ///
+    /// ```rust
+    /// use axum_prometheus::PrometheusMetricLayerBuilder;
+    ///
+    /// let metric_layer = PrometheusMetricLayerBuilder::new()
+    ///     .with_allow_patterns(&["/api/*path", "/public/*path"])
+    ///     .build();
+    /// ```
+    ///
+    /// Supports the same features as `axum`'s Router.
+    ///
+    /// _Note: `with_allow_patterns` and `with_ignore_patterns` are mutually exclusive. If you call both, the last one called takes precedence and resets the previous patterns._
+    ///
+    /// [`with_allow_pattern`]: crate::MetricLayerBuilder::with_allow_pattern
+    pub fn with_allow_patterns(mut self, allow_patterns: &'a [&'a str]) -> Self {
+        self.traffic.with_allow_patterns(allow_patterns);
         self
     }
 
