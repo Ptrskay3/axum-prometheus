@@ -275,7 +275,6 @@ enum FilterMode {
     AllowOnly,
 }
 
-
 impl<'a> Traffic<'a> {
     pub(crate) fn new() -> Self {
         Traffic::default()
@@ -335,7 +334,7 @@ impl<'a> Traffic<'a> {
     pub(crate) fn ignores(&self, path: &str) -> bool {
         match self.filter_mode {
             FilterMode::Ignore => self.ignore_patterns.at(path).is_ok(),
-            FilterMode::AllowOnly => !self.allow_patterns.at(path).is_ok()
+            FilterMode::AllowOnly => !self.allow_patterns.at(path).is_ok(),
         }
     }
 
