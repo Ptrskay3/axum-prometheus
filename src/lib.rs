@@ -268,17 +268,13 @@ pub struct Traffic<'a> {
     endpoint_label: EndpointLabel,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 enum FilterMode {
+    #[default]
     Ignore,
     AllowOnly,
 }
 
-impl Default for FilterMode {
-    fn default() -> Self {
-        FilterMode::Ignore
-    }
-}
 
 impl<'a> Traffic<'a> {
     pub(crate) fn new() -> Self {
