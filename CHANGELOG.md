@@ -6,8 +6,9 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Add `MetricLayerBuilder::with_allow_pattern` and `MetricLayerBuilder::with_allow_patterns` to only report requests matching the given patterns. [\#86]
+- Bump various outdated dependencies [\#87]
 
-# [0.8.0]
+# [0.8.0] - 2025-01-04
 
 ### Changed
 
