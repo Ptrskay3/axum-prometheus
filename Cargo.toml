@@ -1,6 +1,6 @@
 [package]
 name = "axum-prometheus"
-version = "0.8.0"
+version = "0.9.0"
 edition = "2021"
 homepage = "https://github.com/Ptrskay3/axum-prometheus"
 license = "MIT"

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 # [Unreleased]
 
+-
+
+# [0.9.0] - 2025-08-13
+
 ### Changed
 - Add `MetricLayerBuilder::with_allow_pattern` and `MetricLayerBuilder::with_allow_patterns` to only report requests matching the given patterns. [\#86]
 - Bump various outdated dependencies [\#87]
@@ -139,7 +143,7 @@ All notable changes to this project will be documented in this file.
 
 First version.
 
-[unreleased]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.8.0..master
+[unreleased]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.9.0..master
 [0.2.0]: https://github.com/Ptrskay3/axum-prometheus/compare/9fb600d7d9ac2e6d38e6399119fc7ba7f25d5fe0...756dc67bf2baae2de406e012bdaa2334ce0fcdcb
 [0.3.0]: https://github.com/Ptrskay3/axum-prometheus/compare/axum-0.6...release/0.3
 [0.3.1]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.3...release/0.3.1
@@ -152,4 +156,5 @@ First version.
 [0.6.1]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.6.0...release/0.6.1
 [0.7.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.6.1...release/0.7.0
 [0.8.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.7.0...release/0.8.0
+[0.9.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.8.0...release/0.9.0
 [\#28]: https://github.com/Ptrskay3/axum-prometheus/pull/28
