@@ -37,7 +37,7 @@
 //! Add `axum-prometheus` to your `Cargo.toml`.
 //! ```not_rust
 //! [dependencies]
-//! axum-prometheus = "0.9.0"
+//! axum-prometheus = "0.10.0"
 //! ```
 //!
 //! Then you instantiate the prometheus middleware:
@@ -98,7 +98,7 @@
 //! This crate may be used with other exporters than Prometheus. First, disable the default features:
 //!
 //! ```toml
-//! axum-prometheus = { version = "0.9.0", default-features = false }
+//! axum-prometheus = { version = "0.10.0", default-features = false }
 //! ```
 //!
 //! Then implement the `MakeDefaultHandle` for the provider you'd like to use. For `StatsD`:
@@ -334,7 +334,7 @@ impl<'a> Traffic<'a> {
     pub(crate) fn ignores(&self, path: &str) -> bool {
         match self.filter_mode {
             FilterMode::Ignore => self.ignore_patterns.at(path).is_ok(),
-            FilterMode::AllowOnly => !self.allow_patterns.at(path).is_ok(),
+            FilterMode::AllowOnly => self.allow_patterns.at(path).is_err(),
         }
     }
 
