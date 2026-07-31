@@ -13,6 +13,9 @@ use std::{net::SocketAddr, time::Duration};
 
 #[tokio::main]
 async fn main() {
+    let _ = rustls::crypto::CryptoProvider::install_default(
+        rustls::crypto::aws_lc_rs::default_provider(),
+    );
     // Initialize the recorder as you like. This example uses push gateway mode instead of a http listener.
     // To use this, don't forget to enable the "push-gateway" feature in `axum-prometheus`.
     PrometheusBuilder::new()
