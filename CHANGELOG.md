@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 -
 
+# [0.10.1] - 2026-07-31
+
+### Fixed
+
+- `with_prefix` has no effect when finalizing with `build()` [\#91]
+
+### Changed
+
+- Bump various dependencies to latest versions.
+
 # [0.10.0] - 2026-01-03
 
 ### Changed
@@ -149,7 +159,7 @@ All notable changes to this project will be documented in this file.
 
 First version.
 
-[unreleased]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.10.0..master
+[unreleased]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.10.1..master
 [0.2.0]: https://github.com/Ptrskay3/axum-prometheus/compare/9fb600d7d9ac2e6d38e6399119fc7ba7f25d5fe0...756dc67bf2baae2de406e012bdaa2334ce0fcdcb
 [0.3.0]: https://github.com/Ptrskay3/axum-prometheus/compare/axum-0.6...release/0.3
 [0.3.1]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.3...release/0.3.1
@@ -164,4 +174,6 @@ First version.
 [0.8.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.7.0...release/0.8.0
 [0.9.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.8.0...release/0.9.0
 [0.10.0]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.9.0...release/0.10.0
+[0.10.1]: https://github.com/Ptrskay3/axum-prometheus/compare/release/0.10.0...release/0.10.1
 [\#28]: https://github.com/Ptrskay3/axum-prometheus/pull/28
+[\#91]: https://github.com/Ptrskay3/axum-prometheus/pull/91
