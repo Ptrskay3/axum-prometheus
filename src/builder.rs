@@ -208,6 +208,16 @@ where
         self.no_initialize_metrics = true;
         self
     }
+
+    /// Apply the configured prefix and describe the metrics.
+    fn init_metrics(&self) {
+        if let Some(prefix) = self.metric_prefix.as_ref() {
+            set_prefix(prefix);
+        }
+        if !self.no_initialize_metrics {
+            describe_metrics(self.enable_body_size);
+        }
+    }
 }
 
 impl<'a, T, M> MetricLayerBuilder<'a, T, M, LayerOnly> {
@@ -250,6 +260,7 @@ where
 {
     /// Finalize the builder and get the previously registered metric handle out of it.
     pub fn build(self) -> GenericMetricLayer<'a, T, M> {
+        self.init_metrics();
         GenericMetricLayer::from_builder(self)
     }
 }
@@ -313,12 +324,7 @@ impl<'a, T, M> MetricLayerBuilder<'a, T, M, LayerOnly> {
 
 impl<'a, T, M> MetricLayerBuilder<'a, T, M, Paired> {
     pub(crate) fn from_layer_only(layer_only: MetricLayerBuilder<'a, T, M, LayerOnly>) -> Self {
-        if let Some(prefix) = layer_only.metric_prefix.as_ref() {
-            set_prefix(prefix);
-        }
-        if !layer_only.no_initialize_metrics {
-            describe_metrics(layer_only.enable_body_size);
-        }
+        layer_only.init_metrics();
         MetricLayerBuilder {
             _marker: PhantomData,
             traffic: layer_only.traffic,
