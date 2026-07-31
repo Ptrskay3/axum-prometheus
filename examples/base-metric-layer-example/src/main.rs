@@ -40,7 +40,7 @@ async fn main() {
         )
         // Only need to add this layer at the end.
         .layer(BaseMetricLayer::new());
-    let listener = tokio::net::TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 3005)))
+    let listener = tokio::net::TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 3000)))
         .await
         .unwrap();
     axum::serve(listener, app).await.unwrap()
